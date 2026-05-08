@@ -355,7 +355,8 @@
 
 <div class="callout">
   <span class="label">Reading guide</span>
-  <p>Sections 1–9 below frame the decision for <strong>SME / single-product workloads</strong> (50k–500k req/day). If you're at <strong>enterprise or government scale</strong> (~1,000+ CCU, multi-thousand users, regulated data), the recommendations differ — <a href="#enterprise">jump to the Enterprise &amp; Government section</a>.</p>
+  <p>The sections below frame the decision for <strong>SME / single-product workloads</strong> (50k–500k req/day). If you're at <strong>enterprise or government scale</strong> (~1,000+ CCU, multi-thousand users, regulated data), the recommendations differ — <a href="#enterprise">jump to Enterprise &amp; Government Deployment</a>.</p>
+  <p style="margin-top:.4rem"><strong>Note on audio mode:</strong> for SME, hybrid (text → Thai LLM, audio → OpenAI) is acceptable. For regulated/government data, audio must move to local Whisper + Wav2Vec2 — sending children's voices to US endpoints isn't compatible with PDPA.</p>
 </div>
 
 <div class="callout good">
@@ -384,7 +385,7 @@
   <li><strong>Token costs scale linearly with users.</strong> At low volume the hosted APIs are cheap; at high volume the ratio inverts.</li>
   <li><strong>Sovereignty.</strong> Student speech recordings flow through US-hosted endpoints. Some institutional buyers care.</li>
 </ol>
-<p>Goal: a path to <strong>self-hosted Thai LLM</strong> that doesn't break the product on day 1.</p>
+<p>Goal: a migration path to a <strong>Thai-hosted LLM</strong> (whether self-hosted, hosted via opentyphoon.ai, or via a managed Thai cloud provider) that doesn't break the product on day 1. The right answer depends on scale — see the reading guide above.</p>
 </section>
 
 <section id="workload">
@@ -412,8 +413,8 @@
   <h3><span class="rank">1</span>Typhoon 2.x — SCB-10X</h3>
   <p><span class="pill good">Best Thai naturalness</span> <span class="pill good">Function calling</span> <span class="pill good">Hosted API</span> <span class="pill">Apache-2.0 (2.5)</span></p>
   <p>Sizes: <strong>4B</strong> (Gemma3 base), <strong>12B</strong> (Gemma3, 128K ctx), <strong>30B-A3B</strong> (Qwen3 MoE — ~3B active), <strong>70B</strong> (Llama 3.1).</p>
-  <p>The only Thai LLM with <strong>published BFCL function-calling numbers</strong> (75% TH / 79% EN — beats Qwen2.5/Llama3 baselines). Hosted at <a href="https://opentyphoon.ai/">opentyphoon.ai</a> at ~$0.10/M tokens (~14× cheaper than Gemini Flash). #1 across every independent Thai leaderboard.</p>
-  <p class="why"><strong>Why this fits Enggenius:</strong> 4B fits a single L40 GPU at production load, JSON schema compliance is reliable, Thai feedback reads naturally, and the hosted API exists as a zero-code fallback. No surprises.</p>
+  <p>The only Thai LLM with <strong>published BFCL function-calling numbers</strong> (75% TH / 79% EN — beats Qwen2.5/Llama3 baselines). Hosted at <a href="https://opentyphoon.ai/pricing">opentyphoon.ai</a> at ~$0.10/M tokens (~14× cheaper than Gemini Flash 2.5 per their <a href="https://opentyphoon.ai/blog/en/typhoon2-5-release">2.5 release post</a>). #1 across every independent Thai leaderboard.</p>
+  <p class="why"><strong>Why this fits (SME deployment):</strong> 4B fits a single L40 GPU at production load, JSON schema compliance is reliable, Thai feedback reads naturally, and the hosted API exists as a zero-code fallback. No surprises. <em>For enterprise/government deployment, the same models are accessed via a managed Thai cloud — see <a href="#enterprise">below</a>.</em></p>
 </div>
 
 <div class="card">
@@ -421,7 +422,7 @@
   <p><span class="pill good">Strong reasoning</span> <span class="pill warn">Qwen license (100M MAU cap)</span> <span class="pill">Free playground</span></p>
   <p>Latest: <strong>1.6 + R1-32B</strong> (Mar 2025). The R1-32B reasoning variant scores AIME24-TH 56.7 and MATH500-TH 83.8 — beating DeepSeek-R1-70B at half the size.</p>
   <p>Inherits Qwen2.5 tool-calling. 131K input / 8K output. Free playground at <a href="https://openthaigpt.aieat.or.th/">openthaigpt.aieat.or.th</a> but no enterprise SLA.</p>
-  <p class="why"><strong>Why this fits:</strong> If you ever need long-context reasoning (multi-lesson conversations, complex grammar coaching), the R1 variant is the reasoning ceiling. Slower release cadence than SCB-10X — feels government-paced.</p>
+  <p class="why"><strong>Why this fits:</strong> If you ever need long-context reasoning (multi-lesson conversations, complex grammar coaching), the R1 variant is the reasoning ceiling. Slower release cadence than SCB-10X — typical of state-funded research projects.</p>
 </div>
 
 <div class="card">
@@ -608,7 +609,7 @@ router_settings:
   <li><strong>Procurement-friendliness.</strong> Government RFPs favor in-country vendors with local entities, Thai-language contracts, Thai-region invoicing.</li>
   <li><strong>Operational burden.</strong> A school district doesn't want to run vLLM on Vast.ai. They want a phone number to call.</li>
 </ol>
-<p>That puts <strong>managed Thai cloud providers</strong> (SIAM.AI, NTT Thailand, AWS-via-Thai-partner, Bizthai, etc.) in the sweet spot — they handle the GPU and provide an OpenAI-compatible endpoint, while keeping data inside Thailand.</p>
+<p>That puts <strong>managed Thai cloud providers</strong> (SIAM.AI, NTT Thailand, AWS Asia-Pacific via local partner, Bizthai, etc.) in the sweet spot — they handle the GPU and provide an OpenAI-compatible endpoint, while keeping data inside Thailand.</p>
 
 <table>
   <thead><tr><th>Option</th><th>Sovereignty</th><th>Ops burden</th><th>Procurement</th><th>$ at high vol</th></tr></thead>
@@ -629,10 +630,10 @@ router_settings:
   <li><strong>Annual minimum commit</strong> with under-use penalty (vendor wants this) — but with credit roll-over so unused capacity isn't lost</li>
 </ul>
 
-<h3>Compliance stack for kids' / citizen data</h3>
+<h3>Compliance stack for minors' / citizen data</h3>
 <div class="callout warn">
   <span class="label">Critical for government</span>
-  <p>If your users are minors (school students), kids' voices and transcripts are <strong>special-category data</strong> under PDPA Section 26. NDA + VPC alone is not sufficient. Required:</p>
+  <p>If your users are minors (school students), their voice and transcript data is <strong>special-category data</strong> under PDPA Section 26. NDA + VPC alone is not sufficient. Required:</p>
   <ul style="margin:.5rem 0 .5rem 0">
     <li>Signed <strong>Data Processing Agreement (DPA)</strong> separate from the master service agreement</li>
     <li><strong>Breach notification SLA</strong>: 24-72 hours, not "best effort"</li>
@@ -640,7 +641,7 @@ router_settings:
     <li><strong>Audit log retention</strong>: 3 years for government, 1 year for private sector minimum</li>
     <li><strong>Sub-processor disclosure</strong> — every downstream vendor must be listed</li>
     <li><strong>Right to audit</strong> — customer (or their regulator) can inspect infrastructure annually</li>
-    <li><strong>"No training" clause</strong> — vendor cannot use your data to fine-tune their models</li>
+    <li><strong>No-training clause</strong> — vendor cannot use your data to fine-tune their models or any third-party model</li>
     <li><strong>Parental consent flow</strong> for minors — built into the app, logged immutably</li>
   </ul>
 </div>
@@ -661,7 +662,7 @@ router_settings:
   <div class="phase">
     <h4>Phase 1 · Week 1-2</h4>
     <p class="title">Term sheet + procurement</p>
-    <p class="body">Lock pricing model (hybrid), SLA targets, capacity numbers, DPA scope. Get internal procurement / legal / data protection officer aligned. Don't skip this — going to deploy without DPA is a litigation risk for kid-data deployments.</p>
+    <p class="body">Lock pricing model (hybrid), SLA targets, capacity numbers, DPA scope. Get internal procurement / legal / data protection officer aligned. Don't skip this — deploying without a DPA is a litigation risk when minors' data is involved.</p>
   </div>
   <div class="phase">
     <h4>Phase 2 · Week 3-4</h4>

@@ -343,7 +343,8 @@
 
 <div class="callout">
   <span class="label">วิธีอ่าน</span>
-  <p>Section 1–9 ด้านล่างเป็น default frame สำหรับ <strong>SME / single-product workload</strong> (50k–500k req/วัน). ถ้าอยู่ที่ <strong>enterprise หรือ government scale</strong> (~1,000+ CCU, ผู้ใช้หลายพัน, ข้อมูลที่กำกับโดยกฎหมาย) คำแนะนำเปลี่ยน — <a href="#enterprise">กระโดดไปที่ Enterprise / รัฐ</a>.</p>
+  <p>เอกสารด้านล่างเป็น default frame สำหรับ <strong>SME / single-product workload</strong> (50k–500k req/วัน). ถ้าอยู่ที่ <strong>enterprise หรือ government scale</strong> (~1,000+ CCU, ผู้ใช้หลายพัน, ข้อมูลที่กำกับโดยกฎหมาย) คำแนะนำเปลี่ยน — <a href="#enterprise">กระโดดไปที่ Enterprise &amp; Government Deployment</a>.</p>
+  <p style="margin-top:.4rem"><strong>หมายเหตุเรื่อง audio mode:</strong> สำหรับ SME, hybrid (text → Thai LLM, audio → OpenAI) รับได้. แต่สำหรับข้อมูลที่กำกับ/รัฐ — audio ต้องย้ายมาที่ Whisper + Wav2Vec2 ใน local เพราะส่งเสียงผู้เยาว์ไป endpoint ในอเมริกาขัดกับ PDPA</p>
 </div>
 
 <div class="callout good">
@@ -382,7 +383,7 @@
   <li><strong>ต้นทุน token เพิ่มตรงตามจำนวนผู้ใช้.</strong> ที่ 1,000 user/วัน ค่าใช้จ่ายอาจอยู่ที่ ~$5/วัน ($150/เดือน). พอขยายเป็น 100,000 user/วัน กลายเป็น ~$500/วัน ($15,000/เดือน) — hosted API ไม่มีส่วนลดเชิงปริมาณที่จริงจัง. ยิ่ง user เยอะ ยิ่งเสียค่า token ตรงๆ</li>
   <li><strong>Sovereignty (อธิปไตยของข้อมูล).</strong> เสียงพูดของนักเรียนไทยถูก process ที่ data center ในอเมริกา, อยู่นอก data residency ของไทย/อาเซียน. ลูกค้าระดับองค์กร โดยเฉพาะหน่วยราชการหรือโรงเรียนใหญ่ๆ บางแห่งไม่อนุญาตให้ส่งข้อมูลผู้ใช้ออกนอกประเทศ — ตัดโอกาสการขายไปเลย</li>
 </ol>
-<p><strong>เป้าหมาย:</strong> หาเส้นทางไปสู่ self-hosted Thai LLM (LLM ที่เรา host เองบน server ของเรา) โดยที่ product ไม่พังในวันแรก และ migration ทำได้แบบค่อยเป็นค่อยไป</p>
+<p><strong>เป้าหมาย:</strong> หาเส้นทางไปสู่ <strong>Thai-hosted LLM</strong> (ไม่ว่าจะ self-host เอง, ใช้ hosted API ของ opentyphoon.ai, หรือผ่าน managed Thai cloud provider) โดยที่ product ไม่พังในวันแรก และ migration ทำได้แบบค่อยเป็นค่อยไป. คำตอบที่ถูกต้องขึ้นกับ scale — ดูที่ "วิธีอ่าน" ด้านบน</p>
 </section>
 
 <section id="workload">
@@ -428,14 +429,15 @@
     <li><strong>70B</strong> (Llama 3.1) — ใหญ่สุด คุณภาพสูงสุด แต่ต้องใช้ GPU ราคาแพง</li>
   </ul>
   <p>เป็น Thai LLM <strong>ตัวเดียว</strong>ที่มีตัวเลข function calling แบบ BFCL (Berkeley Function Calling Leaderboard — เกณฑ์มาตรฐานวัดความสามารถในการเรียก tool ของ LLM) ตีพิมพ์ — ได้คะแนน <strong>75% สำหรับภาษาไทย / 79% สำหรับภาษาอังกฤษ</strong>, ชนะ baseline ของ Qwen2.5 และ Llama3 ในหมวดเดียวกัน.</p>
-  <p>มี hosted API ที่ <a href="https://opentyphoon.ai/">opentyphoon.ai</a> ราคา ~$0.10 ต่อ 1 ล้าน tokens (ถูกกว่า Gemini Flash ประมาณ 14 เท่า). ขึ้นอันดับ 1 ของทุก leaderboard ภาษาไทยที่เปิดเผยต่อสาธารณะ.</p>
-  <p class="why"><strong>ทำไมเหมาะกับ Enggenius:</strong></p>
+  <p>มี hosted API ที่ <a href="https://opentyphoon.ai/pricing">opentyphoon.ai</a> ราคา ~$0.10 ต่อ 1 ล้าน tokens (ถูกกว่า Gemini Flash 2.5 ประมาณ 14 เท่า ตาม <a href="https://opentyphoon.ai/blog/en/typhoon2-5-release">2.5 release post</a>). ขึ้นอันดับ 1 ของทุก leaderboard ภาษาไทยที่เปิดเผยต่อสาธารณะ.</p>
+  <p class="why"><strong>ทำไมเหมาะ (สำหรับ SME deployment):</strong></p>
   <ul style="margin-top:.25rem">
     <li>ตัว 4B รันบน GPU เช่า L40 ตัวเดียว ($220/เดือน) ได้สบายแม้ที่ load production</li>
-    <li>JSON schema เชื่อถือได้ (ตอบตรง schema ทุกครั้ง — สำคัญมากสำหรับ Enggenius เพราะแอปต้อง parse JSON)</li>
+    <li>JSON schema เชื่อถือได้ (ตอบตรง schema ทุกครั้ง — สำคัญมากเพราะแอปต้อง parse JSON)</li>
     <li>Feedback ภาษาไทยอ่านเป็นธรรมชาติ ไม่ใช่สำนวนแปลแข็งๆ</li>
     <li>ถ้าไม่อยาก self-host เลย — hosted API ใช้ได้เลย ไม่ต้องเขียนโค้ดเพิ่ม รองรับ OpenAI-compatible format</li>
   </ul>
+  <p class="why" style="margin-top:.5rem"><em>สำหรับ enterprise/government deployment, ใช้โมเดลเดียวกันแต่เข้าผ่าน managed Thai cloud — ดู <a href="#enterprise">ด้านล่าง</a></em></p>
 </div>
 
 <div class="card">
@@ -450,7 +452,7 @@
   </ul>
   <p>มี playground ฟรีที่ <a href="https://openthaigpt.aieat.or.th/">openthaigpt.aieat.or.th</a> สำหรับลองเล่น แต่ไม่มี enterprise SLA — ใช้ใน production ต้องเตรียม fallback เอง.</p>
   <p class="why"><strong>ทำไมเหมาะ:</strong> ถ้าในอนาคตต้องการ reasoning ขั้นสูง — เช่น coaching แกรมม่าที่ซับซ้อน, บทสนทนายาวข้ามบทเรียน, อธิบายทำไมประโยคนี้ผิด — ตัว R1-32B เป็นเพดานสูงสุดของ Thai LLM ในด้าน reasoning ตอนนี้.</p>
-  <p class="why"><strong>ข้อจำกัด:</strong> รอบ release ช้ากว่า SCB-10X ตามสไตล์โครงการรัฐ — อาจรอเวลาที่ feature ใหม่ๆ ถูก backport มาช้า. license ของ Qwen ติดเพดาน 100M MAU (ผู้ใช้ active ต่อเดือน) — สำหรับ SME ไม่มีปัญหา แต่สำหรับ B2C ที่ scale ใหญ่ต้องระวัง.</p>
+  <p class="why"><strong>ข้อจำกัด:</strong> รอบ release ช้ากว่า SCB-10X — ตามจังหวะของโครงการที่รัฐสนับสนุน, feature ใหม่ๆ มัก backport มาช้า. License ของ Qwen ติดเพดาน 100M MAU (ผู้ใช้ active ต่อเดือน) — สำหรับ SME ไม่มีปัญหา แต่สำหรับ B2C ที่ scale ใหญ่ต้องระวัง.</p>
 </div>
 
 <div class="card">
@@ -706,7 +708,7 @@ router_settings:
   <li><strong>Procurement-friendly.</strong> RFP ของรัฐชอบ vendor ที่มี local entity, สัญญาภาษาไทย, ใบกำกับภาษีไทย.</li>
   <li><strong>ภาระ ops.</strong> เขตการศึกษาไม่อยากรัน vLLM บน Vast.ai เอง. ต้องการเบอร์โทรไว้โทรหา.</li>
 </ol>
-<p>ฉะนั้น <strong>Thai managed cloud provider</strong> (SIAM.AI, NTT Thailand, AWS-via-Thai-partner, Bizthai ฯลฯ) มาอยู่ใน sweet spot — รับเรื่อง GPU ไว้ และเปิด OpenAI-compatible endpoint, โดยข้อมูลอยู่ในไทยทั้งหมด.</p>
+<p>ฉะนั้น <strong>Thai managed cloud provider</strong> (SIAM.AI, NTT Thailand, AWS Asia-Pacific via Thai partner, Bizthai ฯลฯ) มาอยู่ใน sweet spot — รับเรื่อง GPU ไว้ และเปิด OpenAI-compatible endpoint, โดยข้อมูลอยู่ในไทยทั้งหมด.</p>
 
 <table>
   <thead><tr><th>ตัวเลือก</th><th>Sovereignty</th><th>ภาระ ops</th><th>Procurement</th><th>$ ที่ vol สูง</th></tr></thead>
@@ -727,10 +729,10 @@ router_settings:
   <li><strong>Annual minimum commit</strong> พร้อม penalty (vendor ต้องการอันนี้) — แต่ขอ credit roll-over ให้ capacity ที่ไม่ใช้สามารถยกไปเดือนถัดไปได้</li>
 </ul>
 
-<h3>Compliance stack สำหรับข้อมูลเด็ก / ข้อมูลประชาชน</h3>
+<h3>Compliance stack สำหรับข้อมูลผู้เยาว์ / ข้อมูลประชาชน</h3>
 <div class="callout warn">
   <span class="label">สำคัญมากสำหรับงานรัฐ</span>
-  <p>ถ้าผู้ใช้คือผู้เยาว์ (นักเรียน), เสียงและ transcript ของเด็กถือเป็น <strong>special-category data</strong> ภายใต้ PDPA Section 26. NDA + VPC <strong>ไม่พอ</strong>. ต้องมี:</p>
+  <p>ถ้าผู้ใช้คือผู้เยาว์ (นักเรียน), เสียงและ transcript ของผู้เยาว์ถือเป็น <strong>special-category data</strong> ภายใต้ PDPA Section 26. NDA + VPC <strong>ไม่พอ</strong>. ต้องมี:</p>
   <ul style="margin:.5rem 0 .5rem 0">
     <li><strong>Data Processing Agreement (DPA)</strong> เซ็นแยกจาก master service agreement</li>
     <li><strong>Breach notification SLA</strong>: 24-72 ชม., ไม่ใช่ "best effort"</li>
@@ -738,7 +740,7 @@ router_settings:
     <li><strong>Audit log retention</strong>: 3 ปี สำหรับงานรัฐ, 1 ปี ขั้นต่ำสำหรับเอกชน</li>
     <li><strong>Sub-processor disclosure</strong> — ต้องเปิดเผย vendor downstream ทุกราย</li>
     <li><strong>Right to audit</strong> — ลูกค้า (หรือหน่วยกำกับ) เข้าตรวจ infrastructure ได้รายปี</li>
-    <li><strong>"No training" clause</strong> — vendor ห้ามใช้ข้อมูลเราไป fine-tune model ของเขา</li>
+    <li><strong>No-training clause</strong> — vendor ห้ามใช้ข้อมูลเราไป fine-tune model ของเขาหรือของบุคคลที่สาม</li>
     <li><strong>Parental consent flow</strong> สำหรับผู้เยาว์ — สร้างใน app, log ไม่สามารถลบได้</li>
   </ul>
 </div>
@@ -759,7 +761,7 @@ router_settings:
   <div class="phase">
     <h4>Phase 1 · สัปดาห์ 1-2</h4>
     <p class="title">Term sheet + procurement</p>
-    <p class="body">Lock โมเดลราคา (hybrid), เป้า SLA, ตัวเลข capacity, scope ของ DPA. จัดการ procurement / legal / data protection officer ภายในให้พร้อม. <strong>อย่าข้ามขั้นนี้</strong> — deploy โดยไม่มี DPA = ความเสี่ยงทางคดี โดยเฉพาะงานข้อมูลเด็ก.</p>
+    <p class="body">Lock โมเดลราคา (hybrid), เป้า SLA, ตัวเลข capacity, scope ของ DPA. จัดการ procurement / legal / data protection officer ภายในให้พร้อม. <strong>อย่าข้ามขั้นนี้</strong> — deploy โดยไม่มี DPA = ความเสี่ยงทางคดี โดยเฉพาะเมื่อข้อมูลผู้เยาว์เกี่ยวข้อง.</p>
   </div>
   <div class="phase">
     <h4>Phase 2 · สัปดาห์ 3-4</h4>
