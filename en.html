@@ -329,6 +329,7 @@
     <li><a href="#stack">Stack</a></li>
     <li><a href="#rollout">Rollout plan</a></li>
     <li><a href="#gotchas">Gotchas</a></li>
+    <li><a href="#enterprise">Enterprise &amp; Gov</a></li>
     <li><a href="#sources">Sources</a></li>
   </ul>
 </aside>
@@ -581,6 +582,99 @@ router_settings:
 <div class="callout">
   <span class="label">Safety alignment</span>
   <p>Thai LLMs are less aggressively RLHF'd than Gemini/Claude — fewer refusals, but weaker jailbreak resistance. For a kids-adjacent education app, <strong>layer your own moderation filter</strong> on top.</p>
+</div>
+</section>
+
+<section id="enterprise">
+<h2>Enterprise &amp; Government Deployment</h2>
+<p>The recommendations above target SME workloads (50k–500k req/day, single product team). At <strong>government / education / enterprise scale</strong> — think hundreds of schools, tens of thousands of users, peak 1,000+ CCU — the calculus shifts.</p>
+
+<h3>When the "don't self-host yet" advice flips</h3>
+<p>For SME volume, hosted Typhoon API is cheaper than self-host. Past <strong>~50k req/day sustained</strong>, the math inverts: reserved GPU starts beating per-token billing. At 500k+ req/day, self-host (or managed self-host via a Thai cloud provider) is dramatically cheaper than any hosted API.</p>
+
+<h3>Why a Thai-region cloud beats both hosted API and DIY self-host</h3>
+<p>For <strong>government deployments</strong>, three constraints come together that change the vendor decision:</p>
+<ol>
+  <li><strong>Data sovereignty.</strong> Student / citizen / health data cannot leave the country under PDPA + agency regulations. This rules out US-based hosted APIs (opentyphoon.ai is OK, but Gemini / Claude / OpenAI are not).</li>
+  <li><strong>Procurement-friendliness.</strong> Government RFPs favor in-country vendors with local entities, Thai-language contracts, Thai-region invoicing.</li>
+  <li><strong>Operational burden.</strong> A school district doesn't want to run vLLM on Vast.ai. They want a phone number to call.</li>
+</ol>
+<p>That puts <strong>managed Thai cloud providers</strong> (SIAM.AI, NTT Thailand, AWS-via-Thai-partner, Bizthai, etc.) in the sweet spot — they handle the GPU and provide an OpenAI-compatible endpoint, while keeping data inside Thailand.</p>
+
+<table>
+  <thead><tr><th>Option</th><th>Sovereignty</th><th>Ops burden</th><th>Procurement</th><th>$ at high vol</th></tr></thead>
+  <tbody>
+    <tr><td>Hosted Typhoon API (opentyphoon.ai)</td><td>⚠ depends on region</td><td>None</td><td>✅</td><td>$$ (per token)</td></tr>
+    <tr><td>Self-host on Vast.ai / RunPod</td><td>❌ US data centers</td><td>High</td><td>❌</td><td>$ (cheapest)</td></tr>
+    <tr><td><strong>Thai managed cloud</strong> (SIAM.AI etc.)</td><td>✅</td><td>Low</td><td>✅</td><td>$$ (mid)</td></tr>
+    <tr><td>Self-host in own Thai DC</td><td>✅</td><td>Highest</td><td>✅</td><td>$$$$ upfront</td></tr>
+  </tbody>
+</table>
+
+<h3>Pricing structure to negotiate (not flat-only)</h3>
+<p>Government workloads are <strong>burst-shaped</strong>: heavy during school hours, near zero on weekends and holidays. Flat-reserved pricing wastes budget. Always negotiate:</p>
+<ul>
+  <li><strong>Reserved baseline</strong> — covers steady state (e.g. 200 CCU)</li>
+  <li><strong>Token-based or per-CCU burst</strong> — for peaks and exam weeks</li>
+  <li><strong>Price-review clause at month 6</strong> — max ±10% if upstream GPU prices move &gt;15%</li>
+  <li><strong>Annual minimum commit</strong> with under-use penalty (vendor wants this) — but with credit roll-over so unused capacity isn't lost</li>
+</ul>
+
+<h3>Compliance stack for kids' / citizen data</h3>
+<div class="callout warn">
+  <span class="label">Critical for government</span>
+  <p>If your users are minors (school students), kids' voices and transcripts are <strong>special-category data</strong> under PDPA Section 26. NDA + VPC alone is not sufficient. Required:</p>
+  <ul style="margin:.5rem 0 .5rem 0">
+    <li>Signed <strong>Data Processing Agreement (DPA)</strong> separate from the master service agreement</li>
+    <li><strong>Breach notification SLA</strong>: 24-72 hours, not "best effort"</li>
+    <li><strong>Auto-delete policy</strong> for raw audio (recommend ≤ 30 days)</li>
+    <li><strong>Audit log retention</strong>: 3 years for government, 1 year for private sector minimum</li>
+    <li><strong>Sub-processor disclosure</strong> — every downstream vendor must be listed</li>
+    <li><strong>Right to audit</strong> — customer (or their regulator) can inspect infrastructure annually</li>
+    <li><strong>"No training" clause</strong> — vendor cannot use your data to fine-tune their models</li>
+    <li><strong>Parental consent flow</strong> for minors — built into the app, logged immutably</li>
+  </ul>
+</div>
+
+<h3>Capacity guarantee — what to actually specify</h3>
+<p>Writing "1,000 CCU peak" in a contract isn't enough. A real SLA needs:</p>
+<ul>
+  <li><strong>Reserved CCU</strong>: a floor that's always available (not shared)</li>
+  <li><strong>Burst CCU</strong>: an upper ceiling, with defined behavior past it (queue / soft throttle / fail)</li>
+  <li><strong>TTFT p95</strong> (time to first token) at reserved load AND at peak</li>
+  <li><strong>End-to-end response time p95</strong></li>
+  <li><strong>Token throughput floor</strong> (tokens/sec) at peak — separately from response time</li>
+  <li><strong>Overflow policy</strong> — what happens at 110% of burst CCU?</li>
+</ul>
+
+<h3>The 4-phase rollout (revised for enterprise)</h3>
+<div class="phases">
+  <div class="phase">
+    <h4>Phase 1 · Week 1-2</h4>
+    <p class="title">Term sheet + procurement</p>
+    <p class="body">Lock pricing model (hybrid), SLA targets, capacity numbers, DPA scope. Get internal procurement / legal / data protection officer aligned. Don't skip this — going to deploy without DPA is a litigation risk for kid-data deployments.</p>
+  </div>
+  <div class="phase">
+    <h4>Phase 2 · Week 3-4</h4>
+    <p class="title">Provisioning + integration</p>
+    <p class="body">Vendor reserves GPU pool. Integrate via OpenAI-compatible endpoint (LiteLLM still useful for fallback even with managed provider). Acceptance tests: load test at 1,000 CCU, latency p95 ≤ 2s, schema compliance &gt; 99%, Thai naturalness check on 100 sample prompts.</p>
+  </div>
+  <div class="phase">
+    <h4>Phase 3 · Week 5-6</h4>
+    <p class="title">Soft launch (pilot subset)</p>
+    <p class="body">Roll out to ~10% of footprint (e.g. 40-50 schools). Monitor SLA, gather user feedback, tune Wav2Vec2 / models. Address issues before full deploy. <strong>Don't skip soft launch</strong> — 437 schools all going live on day 1 is asking for a viral incident.</p>
+  </div>
+  <div class="phase">
+    <h4>Phase 4 · Week 7+</h4>
+    <p class="title">Full rollout + monitoring</p>
+    <p class="body">Scale to all schools. Vendor scales reserved capacity to match. Set up monthly SLA reviews. Weekly latency / cost dashboard. Quarterly capacity planning. Plan for renewal negotiation 90 days before contract end.</p>
+  </div>
+</div>
+
+<div class="callout good">
+  <span class="label">Bottom line</span>
+  <p>For <strong>SME / single-product</strong> workloads: stick with hosted Typhoon API + LiteLLM gateway, defer self-hosting until proven volume.</p>
+  <p>For <strong>enterprise / government</strong> workloads: pick a Thai managed cloud provider, negotiate hybrid pricing, sign a real DPA, and roll out in phases. The 87% cost-saving claims you'll see in vendor pitches assume burst-shaped load — verify the assumption holds in your contract terms.</p>
 </div>
 </section>
 

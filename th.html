@@ -317,6 +317,7 @@
     <li><a href="#stack">Stack สำหรับ production</a></li>
     <li><a href="#rollout">แผนเริ่มใช้งาน</a></li>
     <li><a href="#gotchas">จุดที่ต้องระวัง</a></li>
+    <li><a href="#enterprise">Enterprise / รัฐ</a></li>
     <li><a href="#sources">แหล่งอ้างอิง</a></li>
   </ul>
 </aside>
@@ -679,6 +680,99 @@ router_settings:
     <li><strong>ไม่ดี:</strong> ทนต่อ jailbreak (การหลอกให้ LLM พูดสิ่งที่ไม่ควร) ได้น้อยกว่า — เปราะกับ prompt injection</li>
   </ul>
   <p><strong>คำแนะนำ:</strong> สำหรับแอปการศึกษาที่<strong>อาจมีเด็ก</strong>เป็นผู้ใช้, อย่าฝากความปลอดภัยไว้ที่ LLM อย่างเดียว. <strong>ซ้อน moderation filter ของตัวเองทับอีกชั้น</strong> — เช่น keyword filter, classifier ที่ตรวจ output ก่อนแสดง</p>
+</div>
+</section>
+
+<section id="enterprise">
+<h2>การ Deploy ระดับ Enterprise / รัฐบาล</h2>
+<p>คำแนะนำในเอกสารนี้ออกแบบมาสำหรับ workload ขนาด SME (ปริมาณ 50k–500k req/วัน, ทีม product เดียว). พอขยับขึ้นไปเป็น <strong>government / education / enterprise scale</strong> — เช่น โรงเรียนหลายร้อยแห่ง, ผู้ใช้หลายหมื่น, peak 1,000+ CCU — สมการเปลี่ยนหมด.</p>
+
+<h3>เมื่อไหร่ที่คำแนะนำ "อย่าเพิ่ง self-host" จะกลับด้าน</h3>
+<p>ที่ volume SME, hosted Typhoon API ถูกกว่า self-host. แต่พอข้าม <strong>~50k req/วัน แบบยั่งยืน</strong> ทุกวัน — math กลับ: GPU ที่ reserve ราคา fix เริ่มถูกกว่าจ่ายตาม token. ที่ 500k+ req/วัน, self-host (หรือ managed self-host ผ่าน Thai cloud provider) ถูกกว่า hosted API <strong>มหาศาล</strong>.</p>
+
+<h3>ทำไม Thai-region cloud ถึงดีกว่าทั้ง hosted API และ DIY self-host</h3>
+<p>สำหรับ <strong>government deployment</strong>, มี 3 ข้อจำกัดมารวมกันที่เปลี่ยนการเลือก vendor:</p>
+<ol>
+  <li><strong>Data sovereignty (อธิปไตยของข้อมูล).</strong> ข้อมูลนักเรียน/ประชาชน/สุขภาพ ไม่สามารถออกจากประเทศได้ ตาม PDPA + ข้อกำหนดของหน่วยงาน. ข้อนี้ตัด hosted API ที่อยู่อเมริกาออกหมด (opentyphoon.ai ใช้ได้, แต่ Gemini / Claude / OpenAI ใช้ไม่ได้).</li>
+  <li><strong>Procurement-friendly.</strong> RFP ของรัฐชอบ vendor ที่มี local entity, สัญญาภาษาไทย, ใบกำกับภาษีไทย.</li>
+  <li><strong>ภาระ ops.</strong> เขตการศึกษาไม่อยากรัน vLLM บน Vast.ai เอง. ต้องการเบอร์โทรไว้โทรหา.</li>
+</ol>
+<p>ฉะนั้น <strong>Thai managed cloud provider</strong> (SIAM.AI, NTT Thailand, AWS-via-Thai-partner, Bizthai ฯลฯ) มาอยู่ใน sweet spot — รับเรื่อง GPU ไว้ และเปิด OpenAI-compatible endpoint, โดยข้อมูลอยู่ในไทยทั้งหมด.</p>
+
+<table>
+  <thead><tr><th>ตัวเลือก</th><th>Sovereignty</th><th>ภาระ ops</th><th>Procurement</th><th>$ ที่ vol สูง</th></tr></thead>
+  <tbody>
+    <tr><td>Hosted Typhoon API (opentyphoon.ai)</td><td>⚠ ขึ้นกับ region</td><td>None</td><td>✅</td><td>$$ (per token)</td></tr>
+    <tr><td>Self-host บน Vast.ai / RunPod</td><td>❌ data center USA</td><td>สูง</td><td>❌</td><td>$ (ถูกสุด)</td></tr>
+    <tr><td><strong>Thai managed cloud</strong> (SIAM.AI ฯลฯ)</td><td>✅</td><td>ต่ำ</td><td>✅</td><td>$$ (กลาง)</td></tr>
+    <tr><td>Self-host บน DC ของตัวเองในไทย</td><td>✅</td><td>สูงสุด</td><td>✅</td><td>$$$$ ลงทุนสูง</td></tr>
+  </tbody>
+</table>
+
+<h3>โครงสร้างราคาที่ต้องเจรจา (อย่ารับ flat-only)</h3>
+<p>Government workload เป็น <strong>burst-shaped</strong>: ใช้หนักช่วงเวลาเรียน, แทบไม่มีการใช้ในวันหยุด/เสาร์อาทิตย์. flat-reserved pricing คือเสียเงินเปล่า. ต้องเจรจา:</p>
+<ul>
+  <li><strong>Reserved baseline</strong> — รับ steady-state load (เช่น 200 CCU)</li>
+  <li><strong>Token-based หรือ per-CCU burst</strong> — สำหรับ peak และช่วงสอบ</li>
+  <li><strong>Price-review clause ที่เดือน 6</strong> — ปรับได้สูงสุด ±10% ถ้า GPU upstream ขยับ &gt;15%</li>
+  <li><strong>Annual minimum commit</strong> พร้อม penalty (vendor ต้องการอันนี้) — แต่ขอ credit roll-over ให้ capacity ที่ไม่ใช้สามารถยกไปเดือนถัดไปได้</li>
+</ul>
+
+<h3>Compliance stack สำหรับข้อมูลเด็ก / ข้อมูลประชาชน</h3>
+<div class="callout warn">
+  <span class="label">สำคัญมากสำหรับงานรัฐ</span>
+  <p>ถ้าผู้ใช้คือผู้เยาว์ (นักเรียน), เสียงและ transcript ของเด็กถือเป็น <strong>special-category data</strong> ภายใต้ PDPA Section 26. NDA + VPC <strong>ไม่พอ</strong>. ต้องมี:</p>
+  <ul style="margin:.5rem 0 .5rem 0">
+    <li><strong>Data Processing Agreement (DPA)</strong> เซ็นแยกจาก master service agreement</li>
+    <li><strong>Breach notification SLA</strong>: 24-72 ชม., ไม่ใช่ "best effort"</li>
+    <li><strong>Auto-delete policy</strong> สำหรับ raw audio (แนะนำ ≤ 30 วัน)</li>
+    <li><strong>Audit log retention</strong>: 3 ปี สำหรับงานรัฐ, 1 ปี ขั้นต่ำสำหรับเอกชน</li>
+    <li><strong>Sub-processor disclosure</strong> — ต้องเปิดเผย vendor downstream ทุกราย</li>
+    <li><strong>Right to audit</strong> — ลูกค้า (หรือหน่วยกำกับ) เข้าตรวจ infrastructure ได้รายปี</li>
+    <li><strong>"No training" clause</strong> — vendor ห้ามใช้ข้อมูลเราไป fine-tune model ของเขา</li>
+    <li><strong>Parental consent flow</strong> สำหรับผู้เยาว์ — สร้างใน app, log ไม่สามารถลบได้</li>
+  </ul>
+</div>
+
+<h3>Capacity guarantee — ระบุยังไงให้ใช้ได้จริง</h3>
+<p>เขียน "1,000 CCU peak" ในสัญญาไม่พอ. SLA จริงต้องมี:</p>
+<ul>
+  <li><strong>Reserved CCU</strong>: floor ที่ใช้ได้ตลอด (ไม่ shared)</li>
+  <li><strong>Burst CCU</strong>: เพดานสูงสุด, มีนโยบายเมื่อ overflow (queue / soft throttle / fail)</li>
+  <li><strong>TTFT p95</strong> (time to first token) ที่ reserved load และที่ peak</li>
+  <li><strong>End-to-end response time p95</strong></li>
+  <li><strong>Token throughput floor</strong> (tokens/วินาที) ที่ peak — แยกจาก response time</li>
+  <li><strong>Overflow policy</strong> — ที่ 110% ของ burst CCU ทำยังไง?</li>
+</ul>
+
+<h3>4 phases สำหรับ enterprise rollout</h3>
+<div class="phases">
+  <div class="phase">
+    <h4>Phase 1 · สัปดาห์ 1-2</h4>
+    <p class="title">Term sheet + procurement</p>
+    <p class="body">Lock โมเดลราคา (hybrid), เป้า SLA, ตัวเลข capacity, scope ของ DPA. จัดการ procurement / legal / data protection officer ภายในให้พร้อม. <strong>อย่าข้ามขั้นนี้</strong> — deploy โดยไม่มี DPA = ความเสี่ยงทางคดี โดยเฉพาะงานข้อมูลเด็ก.</p>
+  </div>
+  <div class="phase">
+    <h4>Phase 2 · สัปดาห์ 3-4</h4>
+    <p class="title">Provisioning + integration</p>
+    <p class="body">Vendor reserve GPU pool. Integrate ผ่าน OpenAI-compatible endpoint (LiteLLM ยังมีประโยชน์เป็น fallback แม้จะใช้ managed provider). Acceptance test: load test ที่ 1,000 CCU, latency p95 ≤ 2s, schema compliance &gt; 99%, ตรวจ Thai naturalness ที่ sample 100 prompts.</p>
+  </div>
+  <div class="phase">
+    <h4>Phase 3 · สัปดาห์ 5-6</h4>
+    <p class="title">Soft launch (pilot subset)</p>
+    <p class="body">Roll out ที่ ~10% ของ scope (เช่น 40-50 โรงเรียน). monitor SLA, รับ feedback, ปรับ Wav2Vec2 / model. แก้ปัญหาก่อน deploy เต็ม. <strong>อย่าข้าม soft launch</strong> — 437 โรงเรียน live พร้อมกันวันแรก = ขอ viral incident เลย.</p>
+  </div>
+  <div class="phase">
+    <h4>Phase 4 · สัปดาห์ 7+</h4>
+    <p class="title">Full rollout + monitoring</p>
+    <p class="body">Scale ทุกโรงเรียน. Vendor scale reserved capacity. ตั้ง monthly SLA review, weekly latency/cost dashboard, quarterly capacity planning. วางแผน renew negotiation 90 วันก่อนสัญญาหมด.</p>
+  </div>
+</div>
+
+<div class="callout good">
+  <span class="label">สรุป</span>
+  <p>สำหรับ <strong>SME / single-product</strong>: ใช้ hosted Typhoon API + LiteLLM gateway, ยังไม่ต้อง self-host จนกว่าจะพิสูจน์ volume.</p>
+  <p>สำหรับ <strong>enterprise / government</strong>: เลือก Thai managed cloud provider, เจรจา hybrid pricing, เซ็น DPA จริงๆ, roll out เป็น phases. คำเคลม saving 87% ที่เห็นใน vendor pitch สมมติว่า load เป็น burst-shaped — verify ใน contract terms ว่าสมมติฐานถูกต้อง.</p>
 </div>
 </section>
 
