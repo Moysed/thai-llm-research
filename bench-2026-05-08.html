@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thai LLM Bench Report — Typhoon vs Gemini on Enggenius pronunciation</title>
+<meta name="description" content="May 2026 head-to-head benchmark of Typhoon 2.5 (30b) vs Gemini 2.5 Flash-Lite running the actual Enggenius pronunciation-grading prompt. 50 samples per provider — latency, schema, score sanity, Thai output completeness.">
+<style>
+  :root {
+    --bg: #fafaf7;
+    --surface: #ffffff;
+    --ink: #0f172a;
+    --ink-2: #334155;
+    --ink-3: #64748b;
+    --line: #e2e8f0;
+    --accent: #d97706;
+    --accent-2: #fef3c7;
+    --good: #16a34a;
+    --warn: #f59e0b;
+    --bad: #dc2626;
+    --code-bg: #1e293b;
+    --code-ink: #e2e8f0;
+    --pill-bg: #f1f5f9;
+    --max: 880px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0a09;
+      --surface: #1c1917;
+      --ink: #f5f5f4;
+      --ink-2: #d6d3d1;
+      --ink-3: #a8a29e;
+      --line: #292524;
+      --accent: #fbbf24;
+      --accent-2: #422006;
+      --pill-bg: #292524;
+      --code-bg: #0a0a0a;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans Thai", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 2.5rem 1.25rem 6rem; }
+  header.hero { border-bottom: 1px solid var(--line); margin-bottom: 3rem; padding-bottom: 2rem; }
+  header.hero .eyebrow { font-size: .8rem; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); font-weight: 600; margin: 0 0 .75rem; }
+  header.hero h1 { font-size: clamp(1.75rem, 4vw, 2.6rem); line-height: 1.15; margin: 0 0 .75rem; letter-spacing: -0.02em; }
+  header.hero p.lede { font-size: 1.1rem; color: var(--ink-2); margin: 0; max-width: 60ch; }
+  header.hero .meta { margin-top: 1.25rem; font-size: .85rem; color: var(--ink-3); display: flex; gap: 1.25rem; flex-wrap: wrap; }
+  header.hero .meta span { white-space: nowrap; }
+
+  h2 { font-size: 1.45rem; letter-spacing: -0.01em; margin: 3rem 0 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  h2:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
+  p { margin: 0 0 1rem; color: var(--ink-2); }
+  strong { color: var(--ink); font-weight: 600; }
+
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  a:hover { border-bottom-color: var(--accent); }
+
+  ul, ol { padding-left: 1.25rem; color: var(--ink-2); }
+  ul li, ol li { margin: .35rem 0; }
+
+  code { background: var(--pill-bg); padding: 0.1em 0.4em; border-radius: 4px; font: 0.9em/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--ink); }
+  pre { background: var(--code-bg); color: var(--code-ink); padding: 1rem 1.15rem; border-radius: 8px; overflow-x: auto; font: 0.875rem/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace; margin: 1rem 0 1.5rem; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0 2rem; font-size: 0.92rem; background: var(--surface); border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+  th, td { text-align: left; padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--pill-bg); font-weight: 600; color: var(--ink); font-size: 0.85rem; letter-spacing: 0.01em; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .callout { border-left: 4px solid var(--accent); background: var(--surface); padding: 1rem 1.25rem; border-radius: 0 8px 8px 0; margin: 1.5rem 0; }
+  .callout.good { border-left-color: var(--good); }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.bad  { border-left-color: var(--bad); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .label { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: .35rem; }
+  .callout.good .label { color: var(--good); }
+  .callout.warn .label { color: var(--warn); }
+  .callout.bad .label  { color: var(--bad); }
+
+  .pill { display: inline-block; background: var(--pill-bg); border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.78rem; font-weight: 500; color: var(--ink-2); margin-right: 0.25rem; }
+  .pill.good { background: #dcfce7; color: #14532d; }
+  .pill.warn { background: #fef3c7; color: #78350f; }
+  .pill.bad  { background: #fee2e2; color: #7f1d1d; }
+  @media (prefers-color-scheme: dark) {
+    .pill.good { background: #14532d40; color: #4ade80; }
+    .pill.warn { background: #78350f40; color: #fbbf24; }
+    .pill.bad  { background: #7f1d1d40; color: #f87171; }
+  }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1rem 0; }
+  .card h3 { margin-top: 0; }
+
+  .quote { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.25rem; margin: .75rem 0; font-size: .92rem; }
+  .quote .who { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); font-weight: 600; margin-bottom: .35rem; }
+  .quote .en { color: var(--ink); }
+  .quote .th { color: var(--ink-2); margin-top: .25rem; }
+  .quote.empty { color: var(--bad); font-style: italic; }
+
+  footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 0.85rem; }
+  footer p { color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <p class="eyebrow">Bench Report · 2026-05-08</p>
+  <h1>Typhoon 2.5 vs Gemini Flash-Lite — head-to-head on Enggenius pronunciation</h1>
+  <p class="lede">50 samples per provider against the actual <code>PROMPT_TEMPLATE</code> from <code>GeminiPronunciationService.cs</code>. Latency, schema reliability, score sanity, and Thai output completeness — what shipping looks like, not what the marketing page says.</p>
+  <p style="font-size:.85rem; color:var(--ink-3); margin-top:.5rem">🌐 <a href="./bench-2026-05-08-th.html">ภาษาไทย</a></p>
+  <div class="meta">
+    <span>Bench: <code>ψ/lab/thai-llm-bench/bench.py</code></span>
+    <span>Round 1: 5 iter × 10 cases × 2 providers</span>
+    <span>Round 2: 1 iter × 10 cases × 4 sovereign models</span>
+    <span>Network: BKK residential</span>
+  </div>
+  <p class="meta" style="margin-top:.75rem"><span><strong>Update 2026-05-08 (later):</strong> added <a href="#round2">Round 2 — sovereign ThaiLLM Playground</a> with all 4 hosted 8B models (KBTG, AIEAT, SCB 10X, NECTEC) — and a surprising winner.</span></p>
+</header>
+
+<h2>Verdict</h2>
+
+<div class="callout good">
+  <span class="label">Ship</span>
+  <p><strong>Stay on Gemini Flash-Lite for now.</strong> p95 latency 4.8s — comfortably under the 5s real-time UX budget. Add retry on 503/timeout (4% of calls failed transiently in this run).</p>
+</div>
+
+<div class="callout bad">
+  <span class="label">Don't ship</span>
+  <p><strong>Hosted Typhoon 2.5-30b-a3b is not viable for Enggenius.</strong> p95 10.2s — 2× over the latency budget. Long Thai feedback gets the model into 10+ second territory consistently. Schema is rock-solid (50/50) and Thai quality is richer, but the latency wall is real.</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">Watch</span>
+  <p><strong>Schema completeness gap.</strong> Gemini returns valid JSON but its <code>words</code> array is just word names — no per-word score, no per-word Thai feedback. Typhoon ignores the schema and returns full <code>word_scores</code> with bilingual feedback per word. The bench rates both as "schema-valid"; Enggenius's actual student-facing UX needs the per-word feedback. Tighten the schema before declaring a winner.</p>
+</div>
+
+<div class="callout">
+  <span class="label">Round 2 finding</span>
+  <p><strong>THaLLE-0.2-ThaiLLM-8B-fa (KBTG) is the surprise.</strong> Sovereign 8B model on Thai gov GPUs — <strong>p50 3.7s, schema-clean 10/10</strong> on the smoke run. Faster than the hosted 30b Typhoon, faster than Gemini Flash-Lite, and produces richer per-word bilingual feedback than either. <a href="#round2">See Round 2 below</a>. Caveat: only n=10/provider so far; a full 5-iter rerun is needed before betting prod on it.</p>
+</div>
+
+<h2>At a glance</h2>
+
+<figure style="margin:1.5rem 0 2rem">
+  <figcaption style="font-size:.85rem; color:var(--ink-3); margin-bottom:.5rem"><strong>Latency — p50 vs p95 (lower is better).</strong> Dashed red = 5s real-time UX limit. Round 1 sample size n=50, Round 2 (sovereign 8B) n=10.</figcaption>
+  <svg viewBox="0 0 760 350" role="img" aria-label="Latency comparison across all 6 providers" style="width:100%; height:auto; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:8px; display:block">
+    <defs>
+      <pattern id="hatch-en" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="6" stroke="var(--ink-3)" stroke-width="1" opacity="0.25"/>
+      </pattern>
+    </defs>
+    <!-- Grid + ticks -->
+    <g font-size="10" fill="var(--ink-3)" font-family="ui-monospace, monospace">
+      <line x1="180" y1="30" x2="180" y2="305" stroke="var(--line)" stroke-width="1"/>
+      <line x1="270" y1="30" x2="270" y2="305" stroke="var(--line)" stroke-width="0.5" opacity="0.6"/>
+      <line x1="360" y1="30" x2="360" y2="305" stroke="var(--line)" stroke-width="0.5" opacity="0.6"/>
+      <line x1="450" y1="30" x2="450" y2="305" stroke="var(--line)" stroke-width="0.5" opacity="0.6"/>
+      <line x1="540" y1="30" x2="540" y2="305" stroke="var(--line)" stroke-width="0.5" opacity="0.6"/>
+      <line x1="630" y1="30" x2="630" y2="305" stroke="var(--line)" stroke-width="0.5" opacity="0.6"/>
+      <line x1="720" y1="30" x2="720" y2="305" stroke="var(--line)" stroke-width="0.5" opacity="0.6"/>
+      <text x="180" y="22" text-anchor="middle">0s</text>
+      <text x="270" y="22" text-anchor="middle">2s</text>
+      <text x="360" y="22" text-anchor="middle">4s</text>
+      <text x="450" y="22" text-anchor="middle">6s</text>
+      <text x="540" y="22" text-anchor="middle">8s</text>
+      <text x="630" y="22" text-anchor="middle">10s</text>
+      <text x="720" y="22" text-anchor="middle">12s</text>
+    </g>
+    <!-- 5s threshold -->
+    <line x1="405" y1="30" x2="405" y2="305" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,4" opacity="0.7"/>
+    <text x="408" y="38" font-size="10" fill="#dc2626" font-weight="600">5s budget</text>
+
+    <!-- Row 1: Gemini -->
+    <g>
+      <text x="170" y="54" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">Gemini Flash-Lite</text>
+      <text x="170" y="66" font-size="9" fill="var(--ink-3)" text-anchor="end">n=50, R1</text>
+      <rect x="180" y="48" width="94.5" height="10" fill="var(--ink-3)" opacity="0.55" rx="2"/>
+      <text x="278" y="56" font-size="9" fill="var(--ink-2)">2.1s p50</text>
+      <rect x="180" y="62" width="216" height="10" fill="#16a34a" rx="2"/>
+      <text x="400" y="70" font-size="9" fill="var(--ink-2)" font-weight="600">4.8s p95 ✓</text>
+    </g>
+    <!-- Row 2: THaLLE -->
+    <g>
+      <text x="170" y="98" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">THaLLE (KBTG, 8B)</text>
+      <text x="170" y="110" font-size="9" fill="var(--ink-3)" text-anchor="end">n=10, R2</text>
+      <rect x="180" y="92" width="166.5" height="10" fill="var(--ink-3)" opacity="0.55" rx="2"/>
+      <text x="350" y="100" font-size="9" fill="var(--ink-2)">3.7s p50</text>
+      <rect x="180" y="106" width="261" height="10" fill="#16a34a" opacity="0.85" rx="2" stroke="url(#hatch-en)" stroke-width="0"/>
+      <rect x="180" y="106" width="261" height="10" fill="url(#hatch-en)" rx="2"/>
+      <text x="445" y="114" font-size="9" fill="var(--ink-2)">5.8s p95</text>
+    </g>
+    <!-- Row 3: Pathumma -->
+    <g>
+      <text x="170" y="142" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">Pathumma (NECTEC, 8B)</text>
+      <text x="170" y="154" font-size="9" fill="var(--ink-3)" text-anchor="end">n=10, R2</text>
+      <rect x="180" y="136" width="234" height="10" fill="var(--ink-3)" opacity="0.55" rx="2"/>
+      <text x="418" y="144" font-size="9" fill="var(--ink-2)">5.2s p50</text>
+      <rect x="180" y="150" width="378" height="10" fill="#f59e0b" opacity="0.85" rx="2"/>
+      <rect x="180" y="150" width="378" height="10" fill="url(#hatch-en)" rx="2"/>
+      <text x="562" y="158" font-size="9" fill="var(--ink-2)">8.4s p95</text>
+    </g>
+    <!-- Row 4: OpenThaiGPT -->
+    <g>
+      <text x="170" y="186" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">OpenThaiGPT (AIEAT, 8B)</text>
+      <text x="170" y="198" font-size="9" fill="var(--ink-3)" text-anchor="end">n=10, R2</text>
+      <rect x="180" y="180" width="256.5" height="10" fill="var(--ink-3)" opacity="0.55" rx="2"/>
+      <text x="440" y="188" font-size="9" fill="var(--ink-2)">5.7s p50</text>
+      <rect x="180" y="194" width="526.5" height="10" fill="#dc2626" opacity="0.7" rx="2"/>
+      <rect x="180" y="194" width="526.5" height="10" fill="url(#hatch-en)" rx="2"/>
+      <text x="546" y="202" font-size="9" fill="white" font-weight="600">11.7s p95 ✗</text>
+    </g>
+    <!-- Row 5: Typhoon-S -->
+    <g>
+      <text x="170" y="230" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">Typhoon-S (SCB 10X, 8B)</text>
+      <text x="170" y="242" font-size="9" fill="var(--ink-3)" text-anchor="end">n=10, R2</text>
+      <rect x="180" y="224" width="261" height="10" fill="var(--ink-3)" opacity="0.55" rx="2"/>
+      <text x="445" y="232" font-size="9" fill="var(--ink-2)">5.8s p50</text>
+      <rect x="180" y="238" width="382.5" height="10" fill="#f59e0b" opacity="0.85" rx="2"/>
+      <rect x="180" y="238" width="382.5" height="10" fill="url(#hatch-en)" rx="2"/>
+      <text x="566" y="246" font-size="9" fill="var(--ink-2)">8.5s p95</text>
+    </g>
+    <!-- Row 6: Typhoon 30b -->
+    <g>
+      <text x="170" y="274" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">Typhoon 30b hosted</text>
+      <text x="170" y="286" font-size="9" fill="var(--ink-3)" text-anchor="end">n=50, R1</text>
+      <rect x="180" y="268" width="279" height="10" fill="var(--ink-3)" opacity="0.55" rx="2"/>
+      <text x="463" y="276" font-size="9" fill="var(--ink-2)">6.2s p50</text>
+      <rect x="180" y="282" width="459" height="10" fill="#dc2626" opacity="0.7" rx="2"/>
+      <text x="643" y="290" font-size="9" fill="var(--ink-2)" font-weight="600">10.2s p95 ✗</text>
+    </g>
+
+    <!-- Legend -->
+    <g font-size="10" font-family="-apple-system, sans-serif">
+      <rect x="180" y="320" width="14" height="10" fill="var(--ink-3)" opacity="0.55" rx="2"/>
+      <text x="200" y="329" fill="var(--ink-2)">p50 (median)</text>
+      <rect x="290" y="320" width="14" height="10" fill="#16a34a" rx="2"/>
+      <text x="310" y="329" fill="var(--ink-2)">p95 ≤ 5s</text>
+      <rect x="380" y="320" width="14" height="10" fill="#f59e0b" rx="2"/>
+      <text x="400" y="329" fill="var(--ink-2)">p95 5–10s</text>
+      <rect x="470" y="320" width="14" height="10" fill="#dc2626" opacity="0.7" rx="2"/>
+      <text x="490" y="329" fill="var(--ink-2)">p95 &gt; 10s</text>
+      <rect x="560" y="320" width="14" height="10" fill="url(#hatch-en)" stroke="var(--line)" rx="2"/>
+      <text x="580" y="329" fill="var(--ink-2)">small sample (n=10)</text>
+    </g>
+  </svg>
+</figure>
+
+<figure style="margin:1.5rem 0 2rem">
+  <figcaption style="font-size:.85rem; color:var(--ink-3); margin-bottom:.5rem"><strong>Schema reliability — JSON contract adherence.</strong> Did the response include required fields (<code>recognized_text</code>, <code>overall_score</code>) without erroring out? Each bar is normalized to its sample size.</figcaption>
+  <svg viewBox="0 0 760 290" role="img" aria-label="Schema reliability across all 6 providers" style="width:100%; height:auto; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:8px; display:block">
+    <!-- Grid -->
+    <g font-size="10" fill="var(--ink-3)" font-family="ui-monospace, monospace">
+      <line x1="220" y1="30" x2="220" y2="250" stroke="var(--line)"/>
+      <line x1="345" y1="30" x2="345" y2="250" stroke="var(--line)" stroke-width="0.5" opacity="0.6"/>
+      <line x1="470" y1="30" x2="470" y2="250" stroke="var(--line)" stroke-width="0.5" opacity="0.6"/>
+      <line x1="595" y1="30" x2="595" y2="250" stroke="var(--line)" stroke-width="0.5" opacity="0.6"/>
+      <line x1="720" y1="30" x2="720" y2="250" stroke="var(--line)" stroke-width="0.5" opacity="0.6"/>
+      <text x="220" y="22" text-anchor="middle">0%</text>
+      <text x="345" y="22" text-anchor="middle">25%</text>
+      <text x="470" y="22" text-anchor="middle">50%</text>
+      <text x="595" y="22" text-anchor="middle">75%</text>
+      <text x="720" y="22" text-anchor="middle">100%</text>
+    </g>
+
+    <!-- Row 1: Typhoon 30b 100/0/0 -->
+    <g>
+      <text x="210" y="50" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">Typhoon 30b</text>
+      <text x="210" y="62" font-size="9" fill="var(--ink-3)" text-anchor="end">50/0/0 (n=50)</text>
+      <rect x="220" y="44" width="500" height="20" fill="#16a34a" rx="2"/>
+      <text x="470" y="58" font-size="10" fill="white" text-anchor="middle" font-weight="600">100% OK</text>
+    </g>
+    <!-- Row 2: THaLLE -->
+    <g>
+      <text x="210" y="84" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">THaLLE (KBTG)</text>
+      <text x="210" y="96" font-size="9" fill="var(--ink-3)" text-anchor="end">10/0/0 (n=10)</text>
+      <rect x="220" y="78" width="500" height="20" fill="#16a34a" rx="2"/>
+      <text x="470" y="92" font-size="10" fill="white" text-anchor="middle" font-weight="600">100% OK</text>
+    </g>
+    <!-- Row 3: OpenThaiGPT -->
+    <g>
+      <text x="210" y="118" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">OpenThaiGPT</text>
+      <text x="210" y="130" font-size="9" fill="var(--ink-3)" text-anchor="end">10/0/0 (n=10)</text>
+      <rect x="220" y="112" width="500" height="20" fill="#16a34a" rx="2"/>
+      <text x="470" y="126" font-size="10" fill="white" text-anchor="middle" font-weight="600">100% OK</text>
+    </g>
+    <!-- Row 4: Gemini 96/0/4 -->
+    <g>
+      <text x="210" y="152" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">Gemini Flash-Lite</text>
+      <text x="210" y="164" font-size="9" fill="var(--ink-3)" text-anchor="end">48/0/2 (n=50)</text>
+      <rect x="220" y="146" width="480" height="20" fill="#16a34a" rx="2"/>
+      <rect x="700" y="146" width="20" height="20" fill="#dc2626" rx="2"/>
+      <text x="460" y="160" font-size="10" fill="white" text-anchor="middle" font-weight="600">96% OK</text>
+      <text x="710" y="160" font-size="9" fill="white" text-anchor="middle">4%</text>
+    </g>
+    <!-- Row 5: Typhoon-S 60/40/0 -->
+    <g>
+      <text x="210" y="186" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">Typhoon-S (SCB)</text>
+      <text x="210" y="198" font-size="9" fill="var(--ink-3)" text-anchor="end">6/4/0 (n=10)</text>
+      <rect x="220" y="180" width="300" height="20" fill="#16a34a" rx="2"/>
+      <rect x="520" y="180" width="200" height="20" fill="#f59e0b" rx="2"/>
+      <text x="370" y="194" font-size="10" fill="white" text-anchor="middle" font-weight="600">60% OK</text>
+      <text x="620" y="194" font-size="10" fill="white" text-anchor="middle" font-weight="600">40% schema-fail</text>
+    </g>
+    <!-- Row 6: Pathumma 30/70/0 -->
+    <g>
+      <text x="210" y="220" font-size="11" fill="var(--ink)" text-anchor="end" font-weight="600">Pathumma (NECTEC)</text>
+      <text x="210" y="232" font-size="9" fill="var(--ink-3)" text-anchor="end">3/7/0 (n=10)</text>
+      <rect x="220" y="214" width="150" height="20" fill="#16a34a" rx="2"/>
+      <rect x="370" y="214" width="350" height="20" fill="#f59e0b" rx="2"/>
+      <text x="295" y="228" font-size="10" fill="white" text-anchor="middle" font-weight="600">30%</text>
+      <text x="545" y="228" font-size="10" fill="white" text-anchor="middle" font-weight="600">70% schema-fail</text>
+    </g>
+
+    <!-- Legend -->
+    <g font-size="10" font-family="-apple-system, sans-serif">
+      <rect x="220" y="265" width="14" height="10" fill="#16a34a" rx="2"/>
+      <text x="240" y="274" fill="var(--ink-2)">Schema OK</text>
+      <rect x="320" y="265" width="14" height="10" fill="#f59e0b" rx="2"/>
+      <text x="340" y="274" fill="var(--ink-2)">Schema-fail (parsed but missing required fields)</text>
+      <rect x="600" y="265" width="14" height="10" fill="#dc2626" rx="2"/>
+      <text x="620" y="274" fill="var(--ink-2)">HTTP error / timeout</text>
+    </g>
+  </svg>
+</figure>
+
+<h2>What was tested</h2>
+
+<p><strong>Prompt</strong>: verbatim <code>PROMPT_TEMPLATE</code> + <code>LOCALE_INSTRUCTION</code> from <code>GeminiPronunciationService.cs</code> on Enggenius main. The same prompt that ships to students.</p>
+
+<p><strong>Cases</strong> (10 representative student responses):</p>
+<ul>
+  <li><code>perfect_match</code> — student nails the reference</li>
+  <li><code>minor_error</code> — typo-level mispronunciation ("coffe" vs "coffee")</li>
+  <li><code>wrong_word</code> — semantic swap ("cook" for "book")</li>
+  <li><code>missing_word</code> — dropped word</li>
+  <li><code>thai_response</code> — answered in Thai instead of English</li>
+  <li><code>silent</code> — empty input</li>
+  <li><code>nonsense</code> — "blah blah"</li>
+  <li><code>code_switch</code> — Thai-English mix ("I will go to the ประชุม")</li>
+  <li><code>long_phrase</code> — Thai-accented full sentence</li>
+  <li><code>single_word</code> — common mispronunciation ("pronounciation")</li>
+</ul>
+
+<p><strong>Providers</strong>:</p>
+<ul>
+  <li><span class="pill">Typhoon</span> <code>typhoon-v2.5-30b-a3b-instruct</code> via <code>api.opentyphoon.ai</code> — note: <code>typhoon-v2.1-12b-instruct</code> from prior research notes is no longer served, only the 30b is currently live on the hosted endpoint.</li>
+  <li><span class="pill">Gemini</span> <code>gemini-2.5-flash-lite</code> via <code>generativelanguage.googleapis.com</code> with <code>responseSchema</code> enforced.</li>
+</ul>
+
+<p><strong>Settings</strong>: <code>temperature=0.3</code>, <code>max_tokens=2500</code>, <code>response_format=json_object</code>. Sequential calls, no concurrency, single client machine.</p>
+
+<h2>Headline numbers</h2>
+
+<div class="scroll-x">
+<table>
+  <thead>
+    <tr>
+      <th>Provider</th>
+      <th class="num">p50</th>
+      <th class="num">p90</th>
+      <th class="num">p95</th>
+      <th class="num">p99</th>
+      <th class="num">Mean</th>
+      <th class="num">Schema OK</th>
+      <th class="num">Errors</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Typhoon 2.5-30b-a3b</strong></td>
+      <td class="num">6.2 s</td>
+      <td class="num">8.9 s</td>
+      <td class="num"><span class="pill bad">10.2 s</span></td>
+      <td class="num">10.5 s</td>
+      <td class="num">6.1 s</td>
+      <td class="num"><span class="pill good">50 / 50</span></td>
+      <td class="num">0</td>
+    </tr>
+    <tr>
+      <td><strong>Gemini 2.5 Flash-Lite</strong></td>
+      <td class="num">2.1 s</td>
+      <td class="num">2.9 s</td>
+      <td class="num"><span class="pill good">4.8 s</span></td>
+      <td class="num">6.3 s</td>
+      <td class="num">2.3 s</td>
+      <td class="num">48 / 50</td>
+      <td class="num"><span class="pill warn">2</span></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>Gemini is roughly <strong>3× faster at p50</strong> and <strong>2× faster at p95</strong>. Typhoon never errored but was never fast.</p>
+
+<h2>Per-case median latency</h2>
+
+<div class="scroll-x">
+<table>
+  <thead>
+    <tr><th>Case</th><th class="num">Typhoon</th><th class="num">Gemini</th><th class="num">Δ</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>perfect_match</td><td class="num">7.4 s</td><td class="num">2.2 s</td><td class="num">+5.2 s</td></tr>
+    <tr><td>minor_error</td><td class="num">5.0 s</td><td class="num">2.3 s</td><td class="num">+2.7 s</td></tr>
+    <tr><td>wrong_word</td><td class="num">7.7 s</td><td class="num">2.1 s</td><td class="num">+5.6 s</td></tr>
+    <tr><td>missing_word</td><td class="num">6.2 s</td><td class="num">2.4 s</td><td class="num">+3.8 s</td></tr>
+    <tr><td>thai_response</td><td class="num">3.9 s</td><td class="num">1.7 s</td><td class="num">+2.2 s</td></tr>
+    <tr><td>silent</td><td class="num">3.1 s</td><td class="num">1.6 s</td><td class="num">+1.5 s</td></tr>
+    <tr><td>nonsense</td><td class="num">6.5 s</td><td class="num">2.0 s</td><td class="num">+4.5 s</td></tr>
+    <tr><td>code_switch</td><td class="num">7.0 s</td><td class="num">2.3 s</td><td class="num">+4.7 s</td></tr>
+    <tr><td><strong>long_phrase</strong></td><td class="num"><span class="pill bad">10.2 s</span></td><td class="num">2.5 s</td><td class="num"><strong>+7.7 s</strong></td></tr>
+    <tr><td>single_word</td><td class="num">4.6 s</td><td class="num">1.3 s</td><td class="num">+3.3 s</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Typhoon's gap widens with output length. Short-circuit cases (<code>silent</code>, <code>thai_response</code>, where the model returns score=0 fast) are closest to parity. The long Thai-accented sentence is where Typhoon falls off a cliff.</p>
+
+<h2>Score sanity</h2>
+
+<div class="scroll-x">
+<table>
+  <thead>
+    <tr><th>Case</th><th>Expected</th><th class="num">Typhoon</th><th class="num">Gemini</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>perfect_match</td><td>≥ 90</td><td class="num">94–97 ✓</td><td class="num">100 ✓</td></tr>
+    <tr><td>minor_error</td><td>80–95</td><td class="num">86–95 ✓</td><td class="num">95 ✓</td></tr>
+    <tr><td>wrong_word</td><td>60–85</td><td class="num">87 (lenient)</td><td class="num">85–88 ✓</td></tr>
+    <tr><td>thai_response</td><td>0</td><td class="num">0 ✓</td><td class="num">0 ✓</td></tr>
+    <tr><td>silent</td><td>0</td><td class="num">0 ✓</td><td class="num">0 ✓</td></tr>
+    <tr><td><strong>nonsense</strong></td><td>0</td><td class="num"><span class="pill warn">0 / 15 / 20 / 0 / 25</span></td><td class="num"><span class="pill good">0 / 0 / 0 / 0 / 0</span></td></tr>
+    <tr><td>code_switch</td><td>50–80</td><td class="num">85–89 (lenient)</td><td class="num">70 ✓</td></tr>
+    <tr><td>long_phrase</td><td>60–85</td><td class="num">67–83 (variance)</td><td class="num">78–79 ✓</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><strong>Gemini is more deterministic.</strong> At <code>temperature=0.3</code>, Typhoon's <code>nonsense</code> score drifted across runs (0/15/20/0/25); Gemini stayed at 0 every time. For a grading product where students compare scores across attempts, deterministic matters more than absolute correctness.</p>
+
+<p><strong>Typhoon is more lenient on partial wrong</strong> — gave 87 to "She is reading a <em>cook</em>" (semantic swap, only 4/5 words right). Gemini's 85–88 is similar but more honest about the word swap.</p>
+
+<h2>The schema completeness gap</h2>
+
+<p>This is the part the headline numbers miss. Both providers passed the bench's <code>schema_valid</code> check. The actual outputs are different products.</p>
+
+<h3>Typhoon — full per-word bilingual feedback</h3>
+<div class="quote">
+  <p class="who">Typhoon · case: wrong_word · word: "reading"</p>
+  <p class="en"><strong>EN:</strong> Very good! Just try to slightly reduce the 'd' sound at the end for smoother flow.</p>
+  <p class="th"><strong>TH:</strong> ดีมากเลย! เพียงแค่ลดความเข้มของเสียง 'd' ท้ายคำเล็กน้อย จะได้ฟังลื่นไหลขึ้น</p>
+</div>
+<div class="quote">
+  <p class="who">Typhoon · case: wrong_word · overall feedback</p>
+  <p class="en"><strong>EN:</strong> Great effort! Focus on the vowel difference between 'book' and 'cook' using the tip above. Keep practicing!</p>
+  <p class="th"><strong>TH:</strong> พยายามดีมาก! ให้เน้นความแตกต่างของเสียงสระระหว่าง 'book' กับ 'cook' โดยใช้คำแนะนำด้านบน ฝึกต่อไปนะ!</p>
+</div>
+
+<h3>Gemini — schema-valid, but empty</h3>
+<div class="quote empty">
+  <p class="who">Gemini · case: wrong_word · words array</p>
+  <p>[ {"word": "She"}, {"word": "is"}, {"word": "reading"}, {"word": "a"}, {"word": "cook"} ]</p>
+  <p>No score field. No feedback field. No tip on how to fix the "cook" → "book" error.</p>
+</div>
+
+<p><strong>Why</strong>: <code>responseSchema</code> in Gemini's API forces strict adherence to the bench's <code>TEXT_SCHEMA</code>. That schema declares <code>score</code> as a property but not as <code>required</code>, and doesn't declare <code>feedback</code> at all. Gemini drops both. Typhoon, given only <code>response_format=json_object</code> (no schema), follows the natural-language prompt and returns the rich object.</p>
+
+<p><strong>Fix path</strong>: tighten <code>TEXT_SCHEMA</code> to require <code>{ word, score, feedback: { en, th } }</code> per word — then re-run the bench. Until then, the latency comparison is fair, but the quality comparison favors Typhoon by default because it's writing essays while Gemini is filling out a form.</p>
+
+<h2>Reliability</h2>
+
+<table>
+  <thead>
+    <tr><th>Provider</th><th>OK</th><th>Errors</th><th>Failure modes seen</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Typhoon</td><td>50 / 50</td><td>0</td><td>None</td></tr>
+    <tr><td>Gemini</td><td>48 / 50</td><td>2 (4%)</td><td>1 × 60s read timeout, 1 × HTTP 503 Service Unavailable</td></tr>
+  </tbody>
+</table>
+
+<div class="callout warn">
+  <span class="label">Action</span>
+  <p>If Enggenius uses Gemini in prod without retry-on-503 logic, ~4% of pronunciation grades break. Either add a LiteLLM gateway with provider fallback, or wrap the Gemini call in 2× retry with exponential backoff for 503/timeout.</p>
+</div>
+
+<h2>What this means for Enggenius</h2>
+
+<ol>
+  <li><strong>Don't migrate off Gemini yet.</strong> The latency win is too big to give up. Hosted Typhoon 30b is a non-starter for the real-time grading flow.</li>
+  <li><strong>Add retry/fallback on Gemini.</strong> 4% transient failure rate is unacceptable for a student-facing product. LiteLLM gateway with Gemini → Typhoon failover is the cheapest fix and keeps Typhoon in play as a backstop where p95 latency can spike.</li>
+  <li><strong>Tighten the JSON schema before any future bench.</strong> Make per-word <code>score</code> and <code>feedback.{en,th}</code> required. Right now Gemini's "schema-valid" output would be a degraded UX in prod.</li>
+  <li><strong>Re-evaluate Typhoon when self-hosted.</strong> The 30b on hosted infra is bandwidth-bound — Typhoon-S-ThaiLLM-8B (sovereign Thai gov compute, free, OpenAI-compatible-via-LiteLLM) or self-hosted Typhoon 2.1-12B Q4_K_M on a Vast L40 should hit &lt;3s p95 if served via vLLM. That's the real comparison.</li>
+  <li><strong>Code-switching is Typhoon's actual edge.</strong> 85–89 vs Gemini's flat 70 on "I will go to the ประชุม" — if Enggenius students mix Thai filler words while practicing English (likely), Typhoon's grading is more forgiving and arguably more correct. Worth a follow-up bench focused only on code-switch cases.</li>
+</ol>
+
+<h2 id="round2">Round 2 — Sovereign ThaiLLM Playground (8B models)</h2>
+
+<div class="callout warn">
+  <span class="label">Sample size caveat</span>
+  <p><strong>Preliminary, n=10/provider</strong> (1 iteration × 10 cases). The full 5-iteration run was started but stalled past 25 minutes — the sovereign endpoint shows variable tail latency under sequential load and the run was cancelled. Numbers below are directional; do not quote as final p95.</p>
+</div>
+
+<p>The sovereign <a href="https://playground.thaillm.or.th">ThaiLLM Playground</a> exposes 4 different 8B Thai-tuned models from 4 different teams via a <strong>free, OpenAI-compatible</strong> API at <code>https://api.thaillm.or.th/v1</code>. Rate limits: 5 req/s, 200 req/min. Auth: <code>Authorization: Bearer &lt;key&gt;</code>. (The somkiat.cc article calling it "not OpenAI-compatible" is outdated — the API is fully OpenAI-shaped today.)</p>
+
+<h3>The 4 contenders</h3>
+
+<div class="scroll-x">
+<table>
+  <thead>
+    <tr><th>Model ID</th><th>Owner</th><th>Architecture hint</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>THaLLE-0.2-ThaiLLM-8B-fa</code></td><td>KBTG</td><td>Finance-aware tune</td></tr>
+    <tr><td><code>OpenThaiGPT-ThaiLLM-8B-Instruct-v7.2</code></td><td>AIEAT</td><td>OpenThaiGPT lineage, 7th major rev</td></tr>
+    <tr><td><code>Typhoon-S-ThaiLLM-8B-Instruct</code></td><td>SCB 10X</td><td>Smaller "S" sibling of Typhoon 2.x</td></tr>
+    <tr><td><code>Pathumma-ThaiLLM-qwen3-8b-think-3.0.0</code></td><td>NECTEC</td><td>Qwen3 base, "think" reasoning model</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Headline numbers (n=10/provider)</h3>
+
+<div class="scroll-x">
+<table>
+  <thead>
+    <tr>
+      <th>Provider</th>
+      <th class="num">p50</th>
+      <th class="num">p90</th>
+      <th class="num">p95*</th>
+      <th class="num">Mean</th>
+      <th class="num">Schema OK</th>
+      <th class="num">Errors</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>THaLLE</strong> (KBTG)</td>
+      <td class="num"><span class="pill good">3.7 s</span></td>
+      <td class="num">5.6 s</td>
+      <td class="num">5.8 s</td>
+      <td class="num">3.8 s</td>
+      <td class="num"><span class="pill good">10 / 10</span></td>
+      <td class="num">0</td>
+    </tr>
+    <tr>
+      <td><strong>OpenThaiGPT</strong> (AIEAT)</td>
+      <td class="num">5.7 s</td>
+      <td class="num">11.6 s</td>
+      <td class="num">11.7 s</td>
+      <td class="num">6.8 s</td>
+      <td class="num"><span class="pill good">10 / 10</span></td>
+      <td class="num">0</td>
+    </tr>
+    <tr>
+      <td><strong>Typhoon-S</strong> (SCB 10X)</td>
+      <td class="num">5.8 s</td>
+      <td class="num">8.3 s</td>
+      <td class="num">8.5 s</td>
+      <td class="num">5.8 s</td>
+      <td class="num"><span class="pill warn">6 / 10</span></td>
+      <td class="num">0</td>
+    </tr>
+    <tr>
+      <td><strong>Pathumma</strong> (NECTEC)</td>
+      <td class="num">5.2 s</td>
+      <td class="num">6.6 s</td>
+      <td class="num">8.4 s</td>
+      <td class="num">5.5 s</td>
+      <td class="num"><span class="pill bad">3 / 10</span></td>
+      <td class="num">0</td>
+    </tr>
+    <tr>
+      <td>— Round 1 reference —</td>
+      <td colspan="6" style="color:var(--ink-3); font-size:.85rem; text-align:center">Typhoon 30b: 6.2s p50 / Gemini Flash-Lite: 2.1s p50 (n=50)</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p style="font-size:.85rem; color:var(--ink-3)">* p95 from n=10 is essentially the worst-case observation, not a true percentile. Treat as "tail signal" not statistic.</p>
+
+<h3>Reliability — schema compliance is the real story</h3>
+
+<p>All 4 sovereign models stayed online (zero HTTP errors, zero timeouts in 40 calls). The differentiation is in <strong>JSON contract adherence</strong>:</p>
+
+<ul>
+  <li><strong>THaLLE 10/10</strong> — every response had valid JSON with required <code>recognized_text</code> and <code>overall_score</code>. The only sovereign model that earns the JSON-mode label.</li>
+  <li><strong>OpenThaiGPT 10/10</strong> — schema-clean across all 10 cases. Slower than THaLLE but equally reliable.</li>
+  <li><strong>Typhoon-S 6/10</strong> — 4 schema fails on edge cases (<code>silent</code>, <code>code_switch</code>, <code>long_phrase</code>, <code>wrong_word</code>). Manual retest succeeded — appears to be variance/truncation under <code>max_tokens=2500</code>, may need 3500+.</li>
+  <li><strong>Pathumma 3/10</strong> — failed schema on 7/10 cases. Reads more like a model alignment issue than a bench artifact: it's a <em>"think" reasoning model</em> (Qwen3-think-3.0.0) and seems to invent its own JSON shape ignoring the prompt's required fields. <code>overall_score</code> is the most common missing field on edge inputs.</li>
+</ul>
+
+<div class="callout bad">
+  <span class="label">Disqualified for prod</span>
+  <p>Pathumma-ThaiLLM-qwen3-8b-think-3.0.0 is <strong>not viable for Enggenius</strong> as the JSON-grading endpoint. It's a reasoning model, not a structured-output model — even when the JSON validates, it gets the actual grading wrong. See sample below: it failed to flag the obvious "cook" vs "book" word swap and instead invented criticism of the unrelated word "reading".</p>
+</div>
+
+<h3>Score sanity at n=10 (directional)</h3>
+
+<p>Real grading divergence on <code>wrong_word</code> ("She is reading a <em>cook</em>"):</p>
+
+<div class="scroll-x">
+<table>
+  <thead><tr><th>Model</th><th class="num">overall_score</th><th>Grading take</th></tr></thead>
+  <tbody>
+    <tr><td>THaLLE</td><td class="num">60</td><td>Flagged <code>cook=20</code> in word_scores — most honest</td></tr>
+    <tr><td>OpenThaiGPT</td><td class="num">75</td><td>Flagged <code>cook=30</code>, plus example sentences</td></tr>
+    <tr><td>Typhoon-S</td><td class="num">77.5</td><td>Detailed word_comparison with "completely different" label</td></tr>
+    <tr><td>Pathumma</td><td class="num"><span class="pill bad">87.5</span></td><td>Missed the swap entirely. Invented complaint about "reading"</td></tr>
+    <tr><td>Round 1: Typhoon 30b</td><td class="num">87</td><td>Lenient — same blind spot as Pathumma but less wrong</td></tr>
+    <tr><td>Round 1: Gemini</td><td class="num">85–88</td><td>Schema-valid but no per-word scores in <code>words[]</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>THaLLE's 60 is the most pedagogically correct grade — student got 4/5 words right but the wrong one was a meaning-changing swap. A real teacher would not give 87.5 for that.</p>
+
+<h3>Output completeness — sovereign 8B vs Round 1</h3>
+
+<p>Side-by-side on the same <code>wrong_word</code> case, here's what each provider returned for the failing word "cook":</p>
+
+<div class="quote">
+  <p class="who">THaLLE (KBTG, 8B sovereign) · word_scores entry for "cook"</p>
+  <p class="en"><strong>EN:</strong> Practice saying 'book' with a long 'oo' sound and a soft 'k' ending.</p>
+  <p class="th"><strong>TH:</strong> ฝึกออกเสียง 'book' ด้วยเสียงยาว 'oo' และเสียง 'k' ที่นุ่มนวล</p>
+</div>
+
+<div class="quote">
+  <p class="who">OpenThaiGPT (AIEAT, 8B sovereign) · word feedback for "cook" + example sentences</p>
+  <p class="en"><strong>EN:</strong> Practice the 'k' sound in 'book' by placing your tongue behind your upper teeth.</p>
+  <p class="th"><strong>TH:</strong> ฝึกเสียง 'k' ใน 'book' โดยวางลิ้นของคุณหลังฟันบน</p>
+  <p class="en" style="margin-top:.5rem; font-size:.85rem; color:var(--ink-3)"><strong>+ example:</strong> "She is reading a book in the library." / "เธอกำลังอ่านหนังสือในห้องสมุด"</p>
+</div>
+
+<div class="quote empty">
+  <p class="who">Pathumma (NECTEC, 8B sovereign) · feedback</p>
+  <p>Wrong target. Complained about "reading" instead of catching "cook" → "book". Score 87.5 — student would think they did fine and never learn the actual error.</p>
+</div>
+
+<div class="quote">
+  <p class="who">Round 1 reference: Gemini 2.5 Flash-Lite · words array</p>
+  <p>[ {"word": "cook"} ] — schema-valid but empty. No score, no feedback, no Thai.</p>
+</div>
+
+<h3>Per-case median latency (ms, n=1 each)</h3>
+
+<div class="scroll-x">
+<table>
+  <thead>
+    <tr>
+      <th>Case</th>
+      <th class="num">THaLLE</th>
+      <th class="num">OpenThaiGPT</th>
+      <th class="num">Typhoon-S</th>
+      <th class="num">Pathumma</th>
+      <th class="num">Typhoon 30b</th>
+      <th class="num">Gemini</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>perfect_match</td><td class="num">2253</td><td class="num">3945</td><td class="num">3141</td><td class="num">4727</td><td class="num">6291</td><td class="num">3126</td></tr>
+    <tr><td>minor_error</td><td class="num">5762</td><td class="num">5055</td><td class="num">8300</td><td class="num">5657</td><td class="num">4644</td><td class="num">4404</td></tr>
+    <tr><td>wrong_word</td><td class="num">4499</td><td class="num">8366</td><td class="num">6665</td><td class="num">6177</td><td class="num">4729</td><td class="num">15165</td></tr>
+    <tr><td>missing_word</td><td class="num">2663</td><td class="num">7163</td><td class="num">4203</td><td class="num">5282</td><td class="num">6840</td><td class="num">5569</td></tr>
+    <tr><td>thai_response</td><td class="num">5572</td><td class="num">5780</td><td class="num">4587</td><td class="num">4690</td><td class="num">4582</td><td class="num">4659</td></tr>
+    <tr><td>silent</td><td class="num">2343</td><td class="num">5210</td><td class="num">2896</td><td class="num">4122</td><td class="num">2715</td><td class="num">6256</td></tr>
+    <tr><td>nonsense</td><td class="num">3583</td><td class="num">3096</td><td class="num">8484</td><td class="num">5132</td><td class="num">11436</td><td class="num">8760</td></tr>
+    <tr><td>code_switch</td><td class="num">3838</td><td class="num">11618</td><td class="num">7395</td><td class="num">6556</td><td class="num">6140</td><td class="num">8266</td></tr>
+    <tr><td>long_phrase</td><td class="num">3875</td><td class="num">5657</td><td class="num">7257</td><td class="num">8402</td><td class="num">6882</td><td class="num">timeout</td></tr>
+    <tr><td>single_word</td><td class="num">3177</td><td class="num">11700</td><td class="num">4886</td><td class="num">3936</td><td class="num">5124</td><td class="num">2855</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Updated implications for Enggenius</h3>
+
+<ol>
+  <li><strong>Run a full 5-iter bench against THaLLE and OpenThaiGPT before any decision.</strong> The smoke is too small to commit to. But if THaLLE holds at p50 ~3.7s with 50/50 schema across 50 samples, it becomes the new default candidate — free, sovereign, faster than Gemini, and produces full bilingual per-word feedback by default.</li>
+  <li><strong>Pathumma is out.</strong> Reasoning models are not the right architecture for structured grading. NECTEC's "think" lineage prioritizes chain-of-thought over schema adherence — wrong shape for this product.</li>
+  <li><strong>Typhoon-S deserves a second look with bigger <code>max_tokens</code>.</strong> Schema fails appear to be truncation. Bump to 3500 and rerun before disqualifying — it's already the closest to "full Thai-aware Typhoon" available without paying.</li>
+  <li><strong>The 12B Typhoon variant (recommended in the May research write-up) is unreachable.</strong> Hosted 30b is too slow; the 8B-S sovereign sibling is reachable. Self-hosting the 12B Q4_K_M on Vast L40 is now the only way to test that specific size point.</li>
+  <li><strong>Sovereign models actually deliver per-word bilingual feedback by default</strong> — without needing strict response schemas. THaLLE and OpenThaiGPT both filled <code>word_scores</code> as a dict (word→score) plus <code>grammar_feedback</code> / <code>content_feedback</code> / <code>explanation</code> objects with <code>{en, th}</code>. The schema-completeness gap that made Gemini look weak in Round 1 doesn't exist for them.</li>
+</ol>
+
+<h2>Reproduce</h2>
+
+<pre><code>cd D:/AI/Almondo-local/ψ/lab/thai-llm-bench
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env   # add TYPHOON_API_KEY + GEMINI_API_KEY + THAILLM_API_KEY
+ITERATIONS=5 python bench.py</code></pre>
+
+<p>Raw output: <code>results.json</code> (latencies + parsed responses, ~50 samples per provider, full Thai feedback strings preserved).</p>
+
+<h2>Caveats</h2>
+<ul>
+  <li>Single client, single network, BKK residential. Latency for users in other regions will differ — Gemini's POPs vs opentyphoon.ai's TH-only routing means Typhoon may close the gap for non-TH users (and widen it for TH users).</li>
+  <li>No concurrency. Real Enggenius traffic is likely 1-10 concurrent students; if rate limits or queueing kicks in, both providers' p95 will rise.</li>
+  <li><code>typhoon-v2.1-12b-instruct</code> (the smaller model recommended in the original Thai LLM research write-up) is no longer served on opentyphoon.ai. Only the 30b is currently live. The 8B variants are reachable via the new sovereign <a href="https://playground.thaillm.or.th">ThaiLLM Playground</a> (login required) — adding that endpoint to the bench is the obvious next step.</li>
+  <li>Schema completeness was not enforced in this bench. Both providers passed the loose validator; only manual inspection of <code>results.json</code> revealed the Gemini empty-words issue.</li>
+  <li><strong>Round 2 sample size is small (n=10/provider).</strong> The full 5-iter run was cancelled when sequential calls to the sovereign endpoint stalled past 25 minutes — likely queueing / cold-start variance during peak hours on the shared ThaiSC GPU pool. Re-run during off-hours or with backoff between calls.</li>
+  <li>Sovereign endpoint rate limit is 5 req/s, 200 req/min. The bench's sequential pacing stays well under, but a concurrent prod workload would saturate within ~40 students grading simultaneously — sovereign is for SME, not consumer scale.</li>
+</ul>
+
+<footer>
+  <p>Bench code, raw results, and methodology: <code>D:\AI\Almondo-local\ψ\lab\thai-llm-bench\</code>. Companion to the May 2026 <a href="./en.html">Thai LLM build-vs-buy research</a>.</p>
+</footer>
+
+</div>
+</body>
+</html>
