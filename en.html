@@ -353,8 +353,13 @@
 <section id="tldr">
 <h2>TL;DR</h2>
 
+<div class="callout">
+  <span class="label">Reading guide</span>
+  <p>Sections 1–9 below frame the decision for <strong>SME / single-product workloads</strong> (50k–500k req/day). If you're at <strong>enterprise or government scale</strong> (~1,000+ CCU, multi-thousand users, regulated data), the recommendations differ — <a href="#enterprise">jump to the Enterprise &amp; Government section</a>.</p>
+</div>
+
 <div class="callout good">
-  <span class="label">Verdict</span>
+  <span class="label">Verdict (SME default)</span>
   <p><strong>Don't fully self-host yet.</strong> Drop a <strong>LiteLLM gateway</strong> in front of <strong>opentyphoon.ai</strong> with Gemini as fallback — eliminates rate-limit pain at near-zero ops cost. Self-host Typhoon-12B only once sustained traffic crosses ~50k calls/day.</p>
 </div>
 
@@ -401,6 +406,7 @@
 
 <section id="candidates">
 <h2>Top 3 candidates</h2>
+<p style="background:rgba(100,116,139,0.08);border-radius:6px;padding:.6rem .85rem;font-size:.92rem"><strong>Note:</strong> rankings below assume SME workload (hosted API or modest self-host). At enterprise/gov scale, the access path may shift to a managed Thai cloud provider (e.g. SIAM.AI, NTT Thailand) — same models, different deployment vehicle. See <a href="#enterprise">Enterprise &amp; Government</a> for that decision tree.</p>
 
 <div class="card">
   <h3><span class="rank">1</span>Typhoon 2.x — SCB-10X</h3>
@@ -464,14 +470,16 @@
 
 <div class="scroll-x">
 <table>
-  <thead><tr><th>Volume</th><th>Hosted Gemini Flash-Lite</th><th>Typhoon hosted API</th><th>Self-hosted L40 (vLLM)</th></tr></thead>
+  <thead><tr><th>Volume</th><th>Hosted Gemini Flash-Lite</th><th>Typhoon hosted API</th><th>Self-hosted L40 (vLLM)</th><th>Thai managed cloud</th></tr></thead>
   <tbody>
-    <tr><td>50k req/day</td><td class="num">~$75/mo</td><td class="num">~$10–25/mo</td><td class="num">~$220/mo + ops</td></tr>
-    <tr><td>500k req/day</td><td class="num">~$750/mo</td><td class="num">~$100–250/mo</td><td class="num">~$220/mo</td></tr>
-    <tr><td>5M req/day</td><td class="num">~$7,500/mo</td><td class="num">~$1,000+/mo</td><td class="num">~$1,100/mo (H100)</td></tr>
+    <tr><td>50k req/day (SME)</td><td class="num">~$75/mo</td><td class="num">~$10–25/mo</td><td class="num">~$220/mo + ops</td><td class="num">$300–500/mo</td></tr>
+    <tr><td>500k req/day (mid)</td><td class="num">~$750/mo</td><td class="num">~$100–250/mo</td><td class="num">~$220/mo</td><td class="num">$500–1,200/mo</td></tr>
+    <tr><td>5M req/day (large)</td><td class="num">~$7,500/mo</td><td class="num">~$1,000+/mo</td><td class="num">~$1,100/mo (H100)</td><td class="num">$2,500–5,000/mo</td></tr>
+    <tr><td>Government scale (1,000 CCU peak, regulated data)</td><td class="num">❌ data leaves country</td><td class="num">⚠ region-dependent</td><td class="num">❌ procurement issue</td><td class="num"><strong>$1,500–5,000/mo</strong></td></tr>
   </tbody>
 </table>
 </div>
+<p style="font-size:.88rem;color:var(--ink-3);margin-top:-.5rem"><em>Thai managed cloud = SIAM.AI, NTT Thailand, Bizthai etc. Higher than DIY self-host because of managed-service overhead, but the only viable option when sovereignty + procurement-friendliness matter.</em></p>
 
 <h3>GPU rental tiers</h3>
 <ul>
@@ -514,7 +522,8 @@ router_settings:
 </section>
 
 <section id="rollout">
-<h2>Phased rollout</h2>
+<h2>Phased rollout (SME default)</h2>
+<p style="background:rgba(100,116,139,0.08);border-radius:6px;padding:.6rem .85rem;font-size:.92rem">For enterprise/government deployments (committed capacity from day 1, regulated data, multi-thousand users), see the <a href="#enterprise">Enterprise rollout</a> instead — different sequencing (term sheet + DPA before provisioning).</p>
 <div class="phases">
   <div class="phase">
     <h4>Phase 1 · Week 1</h4>

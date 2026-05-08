@@ -341,8 +341,13 @@
 <section id="tldr">
 <h2>สรุปสั้น</h2>
 
+<div class="callout">
+  <span class="label">วิธีอ่าน</span>
+  <p>Section 1–9 ด้านล่างเป็น default frame สำหรับ <strong>SME / single-product workload</strong> (50k–500k req/วัน). ถ้าอยู่ที่ <strong>enterprise หรือ government scale</strong> (~1,000+ CCU, ผู้ใช้หลายพัน, ข้อมูลที่กำกับโดยกฎหมาย) คำแนะนำเปลี่ยน — <a href="#enterprise">กระโดดไปที่ Enterprise / รัฐ</a>.</p>
+</div>
+
 <div class="callout good">
-  <span class="label">ข้อสรุป</span>
+  <span class="label">ข้อสรุป (default สำหรับ SME)</span>
   <p><strong>อย่าเพิ่ง self-host ทั้งหมดในตอนนี้</strong> — ทำทีละขั้นจะปลอดภัยและประหยัดเวลา dev กว่า:</p>
   <ol style="margin:.5rem 0 .75rem 0">
     <li><strong>วันนี้:</strong> ติดตั้ง <strong>LiteLLM</strong> (proxy gateway สำหรับเรียก LLM ที่รองรับหลาย provider) คั่นระหว่างแอปกับ LLM. ตั้งให้เรียก <strong>Typhoon hosted API</strong> (opentyphoon.ai) เป็นหลัก, มี Gemini เป็น fallback. ผลคือ — rate-limit หายทันที, ค่า GPU เป็นศูนย์, ใช้เวลาตั้งค่า ~1 วัน</li>
@@ -410,6 +415,7 @@
 
 <section id="candidates">
 <h2>3 ตัวเลือกที่ดีที่สุด</h2>
+<p style="background:rgba(100,116,139,0.08);border-radius:6px;padding:.6rem .85rem;font-size:.92rem"><strong>หมายเหตุ:</strong> การจัดอันดับด้านล่างสมมติเป็น SME workload (hosted API หรือ self-host แบบไม่ซับซ้อน). ที่ enterprise/gov scale, <strong>โมเดลเดิม</strong>แต่<strong>ช่องทางการเข้าถึงเปลี่ยน</strong> — อาจไปผ่าน managed Thai cloud provider (เช่น SIAM.AI, NTT Thailand) แทนเรียก hosted API ตรง. ดูใน <a href="#enterprise">Enterprise / รัฐ</a> สำหรับ decision tree</p>
 
 <div class="card">
   <h3><span class="rank">1</span>Typhoon 2.x — SCB-10X</h3>
@@ -506,14 +512,16 @@
 <h3>ตารางเปรียบเทียบต้นทุน (USD/เดือน)</h3>
 <div class="scroll-x">
 <table>
-  <thead><tr><th>ปริมาณ</th><th>Hosted Gemini Flash-Lite</th><th>Typhoon hosted API</th><th>Self-host L40 (vLLM)</th></tr></thead>
+  <thead><tr><th>ปริมาณ</th><th>Hosted Gemini Flash-Lite</th><th>Typhoon hosted API</th><th>Self-host L40 (vLLM)</th><th>Thai managed cloud</th></tr></thead>
   <tbody>
-    <tr><td>50k req/วัน (SME)</td><td class="num">~$75</td><td class="num">~$10–25</td><td class="num">~$220 + ops</td></tr>
-    <tr><td>500k req/วัน (กลาง)</td><td class="num">~$750</td><td class="num">~$100–250</td><td class="num">~$220</td></tr>
-    <tr><td>5M req/วัน (ใหญ่)</td><td class="num">~$7,500</td><td class="num">~$1,000+</td><td class="num">~$1,100 (H100)</td></tr>
+    <tr><td>50k req/วัน (SME)</td><td class="num">~$75</td><td class="num">~$10–25</td><td class="num">~$220 + ops</td><td class="num">$300–500</td></tr>
+    <tr><td>500k req/วัน (กลาง)</td><td class="num">~$750</td><td class="num">~$100–250</td><td class="num">~$220</td><td class="num">$500–1,200</td></tr>
+    <tr><td>5M req/วัน (ใหญ่)</td><td class="num">~$7,500</td><td class="num">~$1,000+</td><td class="num">~$1,100 (H100)</td><td class="num">$2,500–5,000</td></tr>
+    <tr><td>Government scale (1,000 CCU peak, ข้อมูลกำกับ)</td><td class="num">❌ ข้อมูลออกประเทศ</td><td class="num">⚠ ขึ้นกับ region</td><td class="num">❌ procurement ไม่ผ่าน</td><td class="num"><strong>$1,500–5,000</strong></td></tr>
   </tbody>
 </table>
 </div>
+<p style="font-size:.88rem;color:var(--ink-3);margin-top:-.5rem"><em>Thai managed cloud = SIAM.AI, NTT Thailand, Bizthai ฯลฯ. แพงกว่า DIY self-host เพราะมี managed-service overhead, แต่เป็นทางเลือกเดียวที่ใช้ได้เมื่อ sovereignty + procurement สำคัญ</em></p>
 <p><strong>จุดคุ้มทุนของ self-host:</strong> เมื่อ traffic ผ่าน ~50k req/day อย่างต่อเนื่อง — ราคา fixed ของ GPU ($220) เริ่มถูกกว่า hosted API. ที่ 500k+ req/day, self-host ถูกกว่า hosted API หลายเท่า.</p>
 
 <h3>ตัวเลือก GPU เช่า (ตามราคา)</h3>
@@ -591,8 +599,9 @@ router_settings:
 </section>
 
 <section id="rollout">
-<h2>แผน rollout แบบแบ่งเฟส</h2>
+<h2>แผน rollout แบบแบ่งเฟส (default สำหรับ SME)</h2>
 <p>หลักการ: <strong>ลงทุนต่ำสุดก่อน เห็นผลจริงค่อยขยับ</strong>. ทุกเฟสไม่ต้องแก้โค้ดแอปเลย — เพราะ LiteLLM คั่นกลางไว้แล้ว.</p>
+<p style="background:rgba(100,116,139,0.08);border-radius:6px;padding:.6rem .85rem;font-size:.92rem">สำหรับ enterprise/government deployment (ต้อง commit capacity ตั้งแต่วันแรก, ข้อมูลถูกกำกับโดยกฎหมาย, ผู้ใช้หลายพัน) — ดู <a href="#enterprise">Enterprise rollout</a> แทน — ลำดับต่างกัน (term sheet + DPA ก่อน provisioning)</p>
 <div class="phases">
   <div class="phase">
     <h4>เฟส 1 · สัปดาห์ 1</h4>
