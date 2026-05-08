@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thai LLM Research — Replacing Gemini/GPT in Enggenius</title>
+<meta name="description" content="A May 2026 build-vs-buy analysis of open-source Thai language models for self-hosting an English-learning app. Typhoon, OpenThaiGPT, Pathumma, SEA-LION compared on benchmarks, license, cost, and fit for production.">
+<style>
+  :root {
+    --bg: #fafaf7;
+    --surface: #ffffff;
+    --ink: #0f172a;
+    --ink-2: #334155;
+    --ink-3: #64748b;
+    --line: #e2e8f0;
+    --accent: #d97706;
+    --accent-2: #fef3c7;
+    --good: #16a34a;
+    --warn: #f59e0b;
+    --bad: #dc2626;
+    --code-bg: #1e293b;
+    --code-ink: #e2e8f0;
+    --pill-bg: #f1f5f9;
+    --max: 880px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0a09;
+      --surface: #1c1917;
+      --ink: #f5f5f4;
+      --ink-2: #d6d3d1;
+      --ink-3: #a8a29e;
+      --line: #292524;
+      --accent: #fbbf24;
+      --accent-2: #422006;
+      --pill-bg: #292524;
+      --code-bg: #0a0a0a;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans Thai", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 2.5rem 1.25rem 6rem; }
+  header.hero {
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+  }
+  header.hero .eyebrow {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--accent);
+    font-weight: 600;
+    margin: 0 0 .75rem;
+  }
+  header.hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.6rem);
+    line-height: 1.15;
+    margin: 0 0 .75rem;
+    letter-spacing: -0.02em;
+  }
+  header.hero p.lede {
+    font-size: 1.1rem;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 60ch;
+  }
+  header.hero .meta {
+    margin-top: 1.25rem;
+    font-size: .85rem;
+    color: var(--ink-3);
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+  header.hero .meta span { white-space: nowrap; }
+
+  h2 {
+    font-size: 1.45rem;
+    letter-spacing: -0.01em;
+    margin: 3rem 0 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+  }
+  h2:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
+  p { margin: 0 0 1rem; color: var(--ink-2); }
+  strong { color: var(--ink); font-weight: 600; }
+
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  a:hover { border-bottom-color: var(--accent); }
+
+  ul, ol { padding-left: 1.25rem; color: var(--ink-2); }
+  ul li, ol li { margin: .35rem 0; }
+
+  code {
+    background: var(--pill-bg);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    font: 0.9em/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--ink);
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 1rem 1.15rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    font: 0.875rem/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    margin: 1rem 0 1.5rem;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 2rem;
+    font-size: 0.92rem;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  th, td {
+    text-align: left;
+    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    background: var(--pill-bg);
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+  }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Callouts */
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1.5rem 0;
+  }
+  .callout.good   { border-left-color: var(--good); }
+  .callout.warn   { border-left-color: var(--warn); }
+  .callout.bad    { border-left-color: var(--bad); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .label {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: .35rem;
+  }
+  .callout.good .label { color: var(--good); }
+  .callout.warn .label { color: var(--warn); }
+  .callout.bad .label  { color: var(--bad); }
+
+  /* Pills / badges */
+  .pill {
+    display: inline-block;
+    background: var(--pill-bg);
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    margin-right: 0.25rem;
+  }
+  .pill.good { background: #dcfce7; color: #14532d; }
+  .pill.warn { background: #fef3c7; color: #78350f; }
+  .pill.bad  { background: #fee2e2; color: #7f1d1d; }
+  @media (prefers-color-scheme: dark) {
+    .pill.good { background: #14532d40; color: #4ade80; }
+    .pill.warn { background: #78350f40; color: #fbbf24; }
+    .pill.bad  { background: #7f1d1d40; color: #f87171; }
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .card h3 { margin-top: 0; }
+  .card .why { color: var(--ink-2); margin-bottom: 0; }
+
+  /* Rank ribbons */
+  .rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: white;
+    background: var(--accent);
+    margin-right: 0.6rem;
+    vertical-align: -3px;
+  }
+  .rank.r2 { background: #64748b; }
+  .rank.r3 { background: #94a3b8; }
+
+  /* Phase grid */
+  .phases {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin: 1.5rem 0;
+  }
+  .phase {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.15rem;
+  }
+  .phase h4 {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin: 0 0 .35rem;
+  }
+  .phase p.title { font-weight: 600; color: var(--ink); margin: 0 0 .5rem; }
+  .phase p.body  { font-size: 0.9rem; color: var(--ink-2); margin: 0; }
+
+  /* Footer */
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 0.85rem;
+  }
+  footer p { color: var(--ink-3); }
+  footer a { color: var(--ink-2); }
+
+  /* TOC sidebar (desktop) */
+  .toc {
+    display: none;
+  }
+  @media (min-width: 1100px) {
+    body { display: grid; grid-template-columns: 220px 1fr; gap: 0; }
+    .toc {
+      display: block;
+      position: sticky;
+      top: 0;
+      align-self: start;
+      max-height: 100vh;
+      overflow-y: auto;
+      padding: 2.5rem 1rem 2rem 2rem;
+      border-right: 1px solid var(--line);
+      font-size: 0.85rem;
+    }
+    .toc .toc-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 0.75rem;
+    }
+    .toc ul { list-style: none; padding: 0; margin: 0; }
+    .toc li { margin: 0.45rem 0; }
+    .toc a {
+      color: var(--ink-2);
+      border: none;
+      display: block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+    }
+    .toc a:hover { background: var(--pill-bg); color: var(--ink); }
+    .wrap { padding-left: 0; }
+  }
+
+  /* Print-friendly */
+  @media print {
+    .toc { display: none; }
+    body { background: white; color: black; }
+    .card, table, .callout { break-inside: avoid; }
+  }
+
+  /* Language switcher */
+  .lang {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 0.85rem;
+    color: var(--ink-3);
+  }
+  .lang a {
+    color: var(--accent);
+    margin: 0 0.4rem;
+  }
+  .lang span { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<aside class="toc">
+  <p class="toc-title">Contents</p>
+  <ul>
+    <li><a href="#tldr">TL;DR</a></li>
+    <li><a href="#problem">Problem</a></li>
+    <li><a href="#workload">Workload profile</a></li>
+    <li><a href="#candidates">Top 3 candidates</a></li>
+    <li><a href="#matrix">Comparison matrix</a></li>
+    <li><a href="#economics">Economics</a></li>
+    <li><a href="#stack">Stack</a></li>
+    <li><a href="#rollout">Rollout plan</a></li>
+    <li><a href="#gotchas">Gotchas</a></li>
+    <li><a href="#sources">Sources</a></li>
+  </ul>
+</aside>
+
+<div class="wrap">
+
+<div class="lang"><span>EN</span> · <a href="th.html">TH</a></div>
+
+<header class="hero">
+  <p class="eyebrow">Build-vs-Buy Analysis · Thai LLM Landscape</p>
+  <h1>Replacing Gemini &amp; GPT in a Thai English-learning app</h1>
+  <p class="lede">A pragmatic 2026 review of open-source Thai LLMs — Typhoon, OpenThaiGPT, Pathumma, SEA-LION — for a real production workload (pronunciation grading + question generation), with self-hosting economics, deployment stack, and a phased rollout plan.</p>
+  <p class="meta">
+    <span>📅 May 2026</span>
+    <span>📦 Enggenius (Unity / WebGL)</span>
+    <span>🇹🇭 Thai-first</span>
+    <span>⏱️ 12-min read</span>
+  </p>
+</header>
+
+<section id="tldr">
+<h2>TL;DR</h2>
+
+<div class="callout good">
+  <span class="label">Verdict</span>
+  <p><strong>Don't fully self-host yet.</strong> Drop a <strong>LiteLLM gateway</strong> in front of <strong>opentyphoon.ai</strong> with Gemini as fallback — eliminates rate-limit pain at near-zero ops cost. Self-host Typhoon-12B only once sustained traffic crosses ~50k calls/day.</p>
+</div>
+
+<table>
+  <thead><tr><th>Use case</th><th>Recommendation</th><th>Mode</th></tr></thead>
+  <tbody>
+    <tr><td>Pronunciation grading (text-mode)</td><td><strong>Typhoon 2.1-Gemma3-4B</strong></td><td>Hosted or self-host</td></tr>
+    <tr><td>Question / example generation</td><td><strong>Typhoon 2.5-30B-A3B</strong></td><td>Hosted (MoE)</td></tr>
+    <tr><td>Pronunciation (audio-mode)</td><td>Whisper-large-v3 → Typhoon-12B</td><td>Hybrid; or stay on OpenAI</td></tr>
+    <tr><td>TTS</td><td>Stay on ElevenLabs</td><td>—</td></tr>
+    <tr><td>Translation</td><td>Stay on Google Translate</td><td>—</td></tr>
+    <tr><td>Routing / failover</td><td><strong>LiteLLM</strong> (Docker, OSS)</td><td>YAML config, OpenAI-compatible</td></tr>
+  </tbody>
+</table>
+</section>
+
+<section id="problem">
+<h2>The problem</h2>
+<p>An English-learning app for Thai students currently routes pronunciation feedback to <strong>Gemini 2.5 Flash-Lite</strong> and <strong>GPT-4o-audio-preview</strong>. Three risks:</p>
+<ol>
+  <li><strong>Vendor lock-in.</strong> If Anthropic / Google / OpenAI degrade, deprecate, or rate-limit your tier, the product breaks.</li>
+  <li><strong>Token costs scale linearly with users.</strong> At low volume the hosted APIs are cheap; at high volume the ratio inverts.</li>
+  <li><strong>Sovereignty.</strong> Student speech recordings flow through US-hosted endpoints. Some institutional buyers care.</li>
+</ol>
+<p>Goal: a path to <strong>self-hosted Thai LLM</strong> that doesn't break the product on day 1.</p>
+</section>
+
+<section id="workload">
+<h2>The actual workload (don't skip this)</h2>
+<p>Picking an LLM without measuring the workload is theater. The current calls look like this:</p>
+<ul>
+  <li><strong>Prompt size</strong>: ~500 input tokens (system + reference phrase + student transcript).</li>
+  <li><strong>Output</strong>: 200–400 tokens of <strong>structured JSON</strong> — word-level scores 0-100, grammar errors, bilingual EN/TH feedback, example sentences.</li>
+  <li><strong>Latency</strong>: real-time, user-facing. <strong>p95 budget &lt;5s</strong>.</li>
+  <li><strong>Volume</strong>: estimated 500–10,000 calls/day depending on active students.</li>
+  <li><strong>Two modes</strong>: text-mode (transcript reasoning) and audio-mode (raw audio in). <strong>Audio mode is what no open Thai LLM can do natively today.</strong></li>
+  <li><strong>No function calling</strong>; the app uses <code>response_schema</code> / <code>response_format: json_object</code>.</li>
+</ul>
+<div class="callout warn">
+  <span class="label">Key constraint</span>
+  <p>If you keep audio-mode evaluation (raw audio → score), you can't 1:1 replace it with a text-only Thai LLM. You need a <strong>Whisper STT pre-processor</strong>, or you accept some quality loss by switching to text-mode only. Hybrid (text → Thai LLM, audio → OpenAI) is a perfectly fine middle path.</p>
+</div>
+</section>
+
+<section id="candidates">
+<h2>Top 3 candidates</h2>
+
+<div class="card">
+  <h3><span class="rank">1</span>Typhoon 2.x — SCB-10X</h3>
+  <p><span class="pill good">Best Thai naturalness</span> <span class="pill good">Function calling</span> <span class="pill good">Hosted API</span> <span class="pill">Apache-2.0 (2.5)</span></p>
+  <p>Sizes: <strong>4B</strong> (Gemma3 base), <strong>12B</strong> (Gemma3, 128K ctx), <strong>30B-A3B</strong> (Qwen3 MoE — ~3B active), <strong>70B</strong> (Llama 3.1).</p>
+  <p>The only Thai LLM with <strong>published BFCL function-calling numbers</strong> (75% TH / 79% EN — beats Qwen2.5/Llama3 baselines). Hosted at <a href="https://opentyphoon.ai/">opentyphoon.ai</a> at ~$0.10/M tokens (~14× cheaper than Gemini Flash). #1 across every independent Thai leaderboard.</p>
+  <p class="why"><strong>Why this fits Enggenius:</strong> 4B fits a single L40 GPU at production load, JSON schema compliance is reliable, Thai feedback reads naturally, and the hosted API exists as a zero-code fallback. No surprises.</p>
+</div>
+
+<div class="card">
+  <h3><span class="rank r2">2</span>OpenThaiGPT — NECTEC / AIEAT</h3>
+  <p><span class="pill good">Strong reasoning</span> <span class="pill warn">Qwen license (100M MAU cap)</span> <span class="pill">Free playground</span></p>
+  <p>Latest: <strong>1.6 + R1-32B</strong> (Mar 2025). The R1-32B reasoning variant scores AIME24-TH 56.7 and MATH500-TH 83.8 — beating DeepSeek-R1-70B at half the size.</p>
+  <p>Inherits Qwen2.5 tool-calling. 131K input / 8K output. Free playground at <a href="https://openthaigpt.aieat.or.th/">openthaigpt.aieat.or.th</a> but no enterprise SLA.</p>
+  <p class="why"><strong>Why this fits:</strong> If you ever need long-context reasoning (multi-lesson conversations, complex grammar coaching), the R1 variant is the reasoning ceiling. Slower release cadence than SCB-10X — feels government-paced.</p>
+</div>
+
+<div class="card">
+  <h3><span class="rank r3">3</span>Pathumma-LLM — NECTEC</h3>
+  <p><span class="pill good">Apache-2.0</span> <span class="pill warn">Mid-tier quality</span> <span class="pill">Government-backed</span></p>
+  <p>Pathumma-llm-text-1.0.0 (Qwen2.5-7B base, 7B params, 128K ctx). Vision-2.0.0-preview and Audio-1.0.0 also out.</p>
+  <p>Quality trails Typhoon and OpenThaiGPT 1.5-14B. Less independently benchmarked. Hosted free at <a href="https://aiforthai.in.th/">aiforthai.in.th</a>.</p>
+  <p class="why"><strong>Why this fits:</strong> The <strong>only zero-restriction license</strong> in the list. Keep as Plan B if Gemma ToU or Qwen 100M MAU clauses ever block enterprise procurement. Quality penalty is real but acceptable.</p>
+</div>
+
+<h3>Also-rans (worth knowing about)</h3>
+<ul>
+  <li><strong>SEA-LION v3 / v3.5</strong> (AI Singapore) — best when you also need Bahasa / Vietnamese / Tamil. For Thai-only, Typhoon wins.</li>
+  <li><strong>WangchanLion / WangchanX</strong> (VISTEC) — more a fine-tuning pipeline than a model line. Strong for Thai MRC, weaker for chat.</li>
+  <li><strong>THaLLE</strong> (KBTG) — finance-specialized. Overkill for an education app.</li>
+  <li><strong>Original SeaLLM-v3</strong> (Alibaba DAMO) — now legacy; AI Singapore's SEA-LION line is the live successor.</li>
+</ul>
+</section>
+
+<section id="matrix">
+<h2>Full comparison matrix</h2>
+<div class="scroll-x">
+<table>
+  <thead><tr>
+    <th>Model</th><th>Params</th><th>Base</th><th>License</th><th>Ctx</th>
+    <th>Fn-call</th><th>Thai bench</th><th>Hosted API</th><th>Last update</th>
+  </tr></thead>
+  <tbody>
+    <tr><td><strong>Typhoon 2.5-30B-A3B</strong></td><td class="num">30B (3B active)</td><td>Qwen3-MoE</td><td>Apache-2.0</td><td class="num">32K</td><td><span class="pill good">Excellent</span></td><td>≈ Gemini Flash</td><td>$0.10/M</td><td class="num">Oct 2025</td></tr>
+    <tr><td><strong>Typhoon 2.1-Gemma3-12B</strong></td><td class="num">12B</td><td>Gemma3</td><td>Gemma ToU</td><td class="num">128K</td><td><span class="pill good">Excellent</span></td><td>≈ Typhoon 2-70B</td><td>Yes</td><td class="num">Mar 2025</td></tr>
+    <tr><td><strong>Typhoon 2.1-Gemma3-4B</strong></td><td class="num">4B</td><td>Gemma3</td><td>Gemma ToU</td><td class="num">128K</td><td><span class="pill good">Good</span></td><td>Strong for size</td><td>Yes</td><td class="num">Mar 2025</td></tr>
+    <tr><td>OpenThaiGPT-R1-32B</td><td class="num">32B</td><td>DeepSeek-R1-Qwen</td><td>Qwen</td><td class="num">128K</td><td>Yes</td><td>AIME24-TH 56.7</td><td>Free playground</td><td class="num">Apr 2025</td></tr>
+    <tr><td>OpenThaiGPT 1.5-14B</td><td class="num">14B</td><td>Qwen2.5</td><td>Qwen</td><td class="num">131K</td><td>Yes</td><td>ThaiExam 58.4</td><td>Free playground</td><td class="num">Oct 2024</td></tr>
+    <tr><td><strong>Pathumma-llm-text</strong></td><td class="num">7B</td><td>Qwen2.5</td><td><strong>Apache-2.0</strong></td><td class="num">128K</td><td>Yes</td><td>Mid-tier</td><td>aiforthai.in.th</td><td class="num">2024</td></tr>
+    <tr><td>Llama-SEA-LION-v3-70B</td><td class="num">71B</td><td>Llama 3.1</td><td>Llama 3.1</td><td class="num">128K</td><td>Inherited</td><td>SEA-HELM strong</td><td>Yes</td><td class="num">2025</td></tr>
+    <tr><td>Gemma-SEA-LION-v3-9B</td><td class="num">9B</td><td>Gemma2</td><td>Gemma ToU</td><td class="num">128K</td><td>Inherited</td><td>Strong SEA</td><td>Yes</td><td class="num">2025</td></tr>
+    <tr><td>THaLLE-0.2-8B</td><td class="num">8B</td><td>Qwen2.5</td><td>Qwen</td><td class="num">128K</td><td>Yes</td><td>Finance-specialized</td><td>No</td><td class="num">Jan 2026</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<section id="economics">
+<h2>Self-hosting economics</h2>
+<p>Reality check: at SME volume, self-hosting is <strong>not cheaper than hosted Gemini Flash-Lite</strong>. The win is rate-limit elimination and sovereignty.</p>
+
+<div class="scroll-x">
+<table>
+  <thead><tr><th>Volume</th><th>Hosted Gemini Flash-Lite</th><th>Typhoon hosted API</th><th>Self-hosted L40 (vLLM)</th></tr></thead>
+  <tbody>
+    <tr><td>50k req/day</td><td class="num">~$75/mo</td><td class="num">~$10–25/mo</td><td class="num">~$220/mo + ops</td></tr>
+    <tr><td>500k req/day</td><td class="num">~$750/mo</td><td class="num">~$100–250/mo</td><td class="num">~$220/mo</td></tr>
+    <tr><td>5M req/day</td><td class="num">~$7,500/mo</td><td class="num">~$1,000+/mo</td><td class="num">~$1,100/mo (H100)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>GPU rental tiers</h3>
+<ul>
+  <li><strong>Cheapest</strong>: Vast.ai L40 40GB ~$0.31/hr (~$220/mo) — fits Typhoon 2.1-Gemma3-12B Q4_K_M comfortably.</li>
+  <li><strong>Mid</strong>: RunPod A100 80GB ~$0.79/hr ($350–570/mo on-demand vs reserved) — runs 12B FP16 with KV-cache headroom.</li>
+  <li><strong>Production</strong>: H100 80GB ~$1.50/hr ($1,100/mo) — only justified at >200 RPS. Typhoon 2.5-30B-A3B claims 3,000 tok/s here.</li>
+</ul>
+</section>
+
+<section id="stack">
+<h2>Production stack</h2>
+
+<h3>Routing layer: LiteLLM</h3>
+<p><a href="https://github.com/BerriAI/litellm">LiteLLM</a> is the right default — self-hosted Docker, free, OpenAI-compatible. One YAML config gets you fallback chains, retry/cooldown, budget caps, and semantic caching. OpenRouter is hosted (zero ops, less control); Portkey is enterprise-grade (overkill for SME).</p>
+<pre><code># litellm-config.yaml — example
+model_list:
+  - model_name: pronounce
+    litellm_params:
+      model: openai/typhoon-v2.1-12b-instruct
+      api_base: https://api.opentyphoon.ai/v1
+      api_key: os.environ/TYPHOON_API_KEY
+
+router_settings:
+  fallbacks:
+    - pronounce: ["gemini-flash-lite", "openai-gpt-4o-mini"]
+  cache:
+    type: "redis"        # semantic cache for repeated lesson prompts
+    redis_host: "localhost"</code></pre>
+
+<h3>Serving (when self-hosting): vLLM</h3>
+<p><a href="https://github.com/vllm-project/vllm">vLLM</a> serves the OpenAI-compatible API, has continuous batching, paged attention, native AWQ/GPTQ/FP8. For a Qwen/Llama/Gemma-based Thai model, <code>vllm serve</code> is one command.</p>
+<ul>
+  <li>TGI (HuggingFace) is comparable but lags vLLM on new architectures.</li>
+  <li>Ollama / llama.cpp are fine for dev and laptop benchmarks. <strong>GGUF served from vLLM is poor</strong> (~93 tok/s); use llama.cpp directly if you go GGUF.</li>
+  <li>Don't serve Ollama in production — no proper continuous batching.</li>
+</ul>
+
+<h3>Quantization</h3>
+<p><strong>Q4_K_M GGUF or AWQ-INT4</strong> is the sweet spot — Q4_K_M adds only ~+0.05 perplexity on Llama-3.1-8B and the imatrix variants preserve rare-token quality. <strong>Avoid Q3 and below for Thai</strong> — Thai's denser tokenizer footprint makes precision loss propagate further than in English. FP8 on vLLM gives ~2× throughput vs FP16 with negligible quality loss.</p>
+</section>
+
+<section id="rollout">
+<h2>Phased rollout</h2>
+<div class="phases">
+  <div class="phase">
+    <h4>Phase 1 · Week 1</h4>
+    <p class="title">LiteLLM gateway, no GPU</p>
+    <p class="body">Drop in LiteLLM Docker. Primary: opentyphoon.ai. Fallback: Gemini Flash-Lite, then OpenAI. Add semantic cache. Rate-limit pain dies. Vendor-independent because LiteLLM swaps providers via YAML.</p>
+  </div>
+  <div class="phase">
+    <h4>Phase 2 · Week 2</h4>
+    <p class="title">Real-prompt benchmark</p>
+    <p class="body">Run actual production prompts through Typhoon 4B / 12B / 30B-A3B vs Gemini. Measure schema compliance, latency p50/p95, Thai naturalness (manual grade), cost. Pick the winner per task.</p>
+  </div>
+  <div class="phase">
+    <h4>Phase 3 · When justified</h4>
+    <p class="title">Self-host Typhoon-12B</p>
+    <p class="body">When sustained traffic crosses ~50k req/day, spin up Vast.ai L40 ($220/mo) running Typhoon 2.1-Gemma3-12B Q4_K_M via vLLM. LiteLLM swaps endpoint — zero app code change.</p>
+  </div>
+  <div class="phase">
+    <h4>Phase 4 · Optional</h4>
+    <p class="title">Whisper for audio mode</p>
+    <p class="body">Whisper-large-v3 self-hosted on the same GPU (CTranslate2 or whisper.cpp) → transcript → Typhoon → JSON. Or keep audio routed to OpenAI as permanent hybrid. Both are fine.</p>
+  </div>
+</div>
+</section>
+
+<section id="gotchas">
+<h2>Gotchas that will bite you</h2>
+
+<div class="callout bad">
+  <span class="label">No audio-in</span>
+  <p><strong>No open Thai LLM has audio-in capability.</strong> If you must keep audio-mode evaluation, plan a Whisper preprocessing step or stay hybrid with OpenAI for audio.</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">Quantization sensitivity</span>
+  <p>Q3 and lower quantization breaks Thai harder than English. Thai's tokenizer maps characters to fewer denser tokens, so each lost bit of precision propagates further. <strong>Q4_K_M minimum</strong>; FP8 ideal.</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">Function-calling reliability</span>
+  <p>Only Typhoon publishes BFCL-style numbers (75% TH / 79% EN). OpenThaiGPT and Pathumma technically support tool-calling via Qwen2.5 inheritance but lack independent Thai-prompt evals. <strong>Write retry + repair logic</strong> regardless of provider.</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">Code-switching</span>
+  <p>Real Thai input mixes Thai and English ("เปิด tab ใน browser"). Typhoon and SEA-LION handle this best; OpenThaiGPT 1.5 sometimes over-translates English back to Thai. <strong>Test your exact prompts before committing</strong>.</p>
+</div>
+
+<div class="callout">
+  <span class="label">Tokenizer efficiency</span>
+  <p>Thai-tuned tokenizers (Typhoon SentencePiece) are <strong>~2.6× more efficient</strong> on Thai than vanilla GPT-4 / Llama tokenizers. Vanilla Llama 3.1 / Qwen2.5 burn ~2× the tokens for the same Thai text — so cost comparisons must factor tokenizer fit, not just $/M tokens.</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">License terms</span>
+  <p>Each model inherits its commercial ceiling from the base it was fine-tuned on:</p>
+  <ul style="margin:.5rem 0 .75rem 0">
+    <li><strong>Llama-based</strong> (Typhoon 2-70B, SEA-LION-70B) — <strong>700M MAU clause</strong>. Past 700M monthly active users you need Meta's permission.</li>
+    <li><strong>Gemma-based</strong> (Typhoon 2.1-Gemma3) — <strong>Gemma Terms of Use</strong>. Commercial use allowed, no MAU cap, but you must comply with Google's prohibited-uses policy.</li>
+    <li><strong>Qwen-based</strong> (OpenThaiGPT, THaLLE) — <strong>100M MAU cap</strong>.</li>
+    <li><strong>Apache-2.0</strong> (Pathumma, Qwen3 base — Typhoon 2.5 inherits this from Qwen3) — most permissive, no cap, no commercial restriction.</li>
+  </ul>
+  <p>None of these block an SME today, but <strong>choose with the ceiling in mind</strong> — switching later if you grow fast is more painful than picking right up front.</p>
+</div>
+
+<div class="callout">
+  <span class="label">Safety alignment</span>
+  <p>Thai LLMs are less aggressively RLHF'd than Gemini/Claude — fewer refusals, but weaker jailbreak resistance. For a kids-adjacent education app, <strong>layer your own moderation filter</strong> on top.</p>
+</div>
+</section>
+
+<section id="sources">
+<h2>Sources</h2>
+<h3>Models</h3>
+<ul>
+  <li><a href="https://opentyphoon.ai/">opentyphoon.ai</a> · <a href="https://huggingface.co/scb10x">HF: scb10x</a> · <a href="https://arxiv.org/abs/2412.13702">Typhoon 2 paper</a> · <a href="https://opentyphoon.ai/blog/en/typhoon2-5-release">Typhoon 2.5 release</a> · <a href="https://docs.opentyphoon.ai/en/tool/">Tool-calling docs</a></li>
+  <li><a href="https://huggingface.co/openthaigpt/openthaigpt1.5-14b-instruct">HF: OpenThaiGPT 1.5-14B</a> · <a href="https://arxiv.org/abs/2504.01789">OpenThaiGPT 1.6 / R1 paper</a> · <a href="https://openthaigpt.aieat.or.th/">openthaigpt.aieat.or.th</a></li>
+  <li><a href="https://huggingface.co/nectec/Pathumma-llm-text-1.0.0">HF: Pathumma-llm-text-1.0.0</a> · <a href="https://www.nectec.or.th/innovation/innovation-service/pathumma-llm.html">NECTEC Pathumma page</a></li>
+  <li><a href="https://sea-lion.ai/blog/sea-lion-v3/">SEA-LION v3 blog</a> · <a href="https://huggingface.co/aisingapore/Llama-SEA-LION-v3-70B">HF: Llama-SEA-LION-v3-70B</a> · <a href="https://arxiv.org/abs/2504.05747">SEA-LION paper</a></li>
+  <li><a href="https://github.com/vistec-AI/WangchanX">WangchanX repo</a> · <a href="https://huggingface.co/aisingapore/Gemma2-9b-WangchanLIONv2-instruct">HF: Gemma2-9b-WangchanLIONv2</a></li>
+  <li><a href="https://arxiv.org/abs/2601.04597">THaLLE paper</a> · <a href="https://huggingface.co/KBTG-Labs/THaLLE-0.2-ThaiLLM-8B-fa">HF: THaLLE-0.2-8B</a></li>
+</ul>
+<h3>Benchmarks &amp; safety</h3>
+<ul>
+  <li><a href="https://opentyphoon.ai/blog/en/introducing-the-thaillm-leaderboard-thaillm-evaluation-ecosystem-508e789d06bf">ThaiLLM Leaderboard</a> · <a href="https://opentyphoon.ai/blog/en/thaisafetybench">ThaiSafetyBench</a> · <a href="https://crfm.stanford.edu/2024/09/04/thaiexam.html">Stanford HELM ThaiExam</a></li>
+</ul>
+<h3>Stack &amp; infrastructure</h3>
+<ul>
+  <li><a href="https://github.com/BerriAI/litellm">LiteLLM</a> · <a href="https://github.com/vllm-project/vllm">vLLM</a> · <a href="https://www.pkgpulse.com/guides/portkey-vs-litellm-vs-openrouter-llm-gateway-2026">LiteLLM vs OpenRouter vs Portkey 2026</a></li>
+  <li><a href="https://www.databasemart.com/blog/vllm-gpu-benchmark-rtx4090">RTX 4090 vLLM benchmark</a> · <a href="https://medium.com/@velinxs/vast-ai-vs-runpod-pricing-in-2026-which-gpu-cloud-is-cheaper-bd4104aa591b">Vast.ai vs RunPod 2026</a> · <a href="https://arxiv.org/html/2601.14277v1">llama.cpp quantization study</a></li>
+</ul>
+</section>
+
+<footer>
+  <p>Research compiled May 8, 2026 · Compiled from public benchmarks, vendor documentation, and Thai dev community feedback. Numbers and recommendations age fast — re-check vendor APIs and HF leaderboards before committing budget.</p>
+  <p>This page is a single static HTML file (~25 KB), no JS, no external dependencies, mobile-friendly, dark-mode aware. <strong>Drop it on any static host and share the link.</strong></p>
+</footer>
+
+</div><!-- /wrap -->
+</body>
+</html>

@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>วิจัย Thai LLM — แทน Gemini/GPT ใน Enggenius</title>
+<meta name="description" content="วิเคราะห์ Build-vs-Buy ของ open-source Thai LLM ปี 2026 สำหรับ self-host แอปเรียนภาษาอังกฤษ — เปรียบเทียบ Typhoon, OpenThaiGPT, Pathumma, SEA-LION ทั้งด้าน benchmark, license, ต้นทุน และความเหมาะกับ production">
+<style>
+  :root {
+    --bg: #fafaf7;
+    --surface: #ffffff;
+    --ink: #0f172a;
+    --ink-2: #334155;
+    --ink-3: #64748b;
+    --line: #e2e8f0;
+    --accent: #d97706;
+    --accent-2: #fef3c7;
+    --good: #16a34a;
+    --warn: #f59e0b;
+    --bad: #dc2626;
+    --code-bg: #1e293b;
+    --code-ink: #e2e8f0;
+    --pill-bg: #f1f5f9;
+    --max: 880px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0a09;
+      --surface: #1c1917;
+      --ink: #f5f5f4;
+      --ink-2: #d6d3d1;
+      --ink-3: #a8a29e;
+      --line: #292524;
+      --accent: #fbbf24;
+      --accent-2: #422006;
+      --pill-bg: #292524;
+      --code-bg: #0a0a0a;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.7 "Noto Sans Thai", "IBM Plex Sans Thai", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 2.5rem 1.25rem 6rem; }
+  header.hero {
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+  }
+  header.hero .eyebrow {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--accent);
+    font-weight: 600;
+    margin: 0 0 .75rem;
+  }
+  header.hero h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    line-height: 1.25;
+    margin: 0 0 .75rem;
+    letter-spacing: -0.01em;
+  }
+  header.hero p.lede {
+    font-size: 1.08rem;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 60ch;
+  }
+  header.hero .meta {
+    margin-top: 1.25rem;
+    font-size: .85rem;
+    color: var(--ink-3);
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+  header.hero .meta span { white-space: nowrap; }
+
+  h2 {
+    font-size: 1.45rem;
+    letter-spacing: -0.01em;
+    margin: 3rem 0 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+  }
+  h2:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
+  p { margin: 0 0 1rem; color: var(--ink-2); }
+  strong { color: var(--ink); font-weight: 600; }
+
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  a:hover { border-bottom-color: var(--accent); }
+
+  ul, ol { padding-left: 1.25rem; color: var(--ink-2); }
+  ul li, ol li { margin: .35rem 0; }
+
+  code {
+    background: var(--pill-bg);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    font: 0.9em/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--ink);
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 1rem 1.15rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    font: 0.875rem/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    margin: 1rem 0 1.5rem;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 2rem;
+    font-size: 0.92rem;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  th, td {
+    text-align: left;
+    padding: 0.75rem 0.85rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    background: var(--pill-bg);
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 0.85rem;
+  }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1.5rem 0;
+  }
+  .callout.good   { border-left-color: var(--good); }
+  .callout.warn   { border-left-color: var(--warn); }
+  .callout.bad    { border-left-color: var(--bad); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .label {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    margin-bottom: .35rem;
+  }
+  .callout.good .label { color: var(--good); }
+  .callout.warn .label { color: var(--warn); }
+  .callout.bad .label  { color: var(--bad); }
+
+  .pill {
+    display: inline-block;
+    background: var(--pill-bg);
+    border-radius: 999px;
+    padding: 0.15rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    margin-right: 0.25rem;
+    margin-bottom: 0.2rem;
+  }
+  .pill.good { background: #dcfce7; color: #14532d; }
+  .pill.warn { background: #fef3c7; color: #78350f; }
+  .pill.bad  { background: #fee2e2; color: #7f1d1d; }
+  @media (prefers-color-scheme: dark) {
+    .pill.good { background: #14532d40; color: #4ade80; }
+    .pill.warn { background: #78350f40; color: #fbbf24; }
+    .pill.bad  { background: #7f1d1d40; color: #f87171; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .card h3 { margin-top: 0; }
+  .card .why { color: var(--ink-2); margin-bottom: 0; }
+
+  .rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: white;
+    background: var(--accent);
+    margin-right: 0.6rem;
+    vertical-align: -3px;
+  }
+  .rank.r2 { background: #64748b; }
+  .rank.r3 { background: #94a3b8; }
+
+  .phases {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin: 1.5rem 0;
+  }
+  .phase {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.15rem;
+  }
+  .phase h4 {
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    margin: 0 0 .35rem;
+    font-weight: 700;
+  }
+  .phase p.title { font-weight: 600; color: var(--ink); margin: 0 0 .5rem; }
+  .phase p.body  { font-size: 0.92rem; color: var(--ink-2); margin: 0; line-height: 1.6; }
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 0.88rem;
+  }
+  footer p { color: var(--ink-3); }
+  footer a { color: var(--ink-2); }
+
+  .toc { display: none; }
+  @media (min-width: 1100px) {
+    body { display: grid; grid-template-columns: 240px 1fr; gap: 0; }
+    .toc {
+      display: block;
+      position: sticky;
+      top: 0;
+      align-self: start;
+      max-height: 100vh;
+      overflow-y: auto;
+      padding: 2.5rem 1rem 2rem 2rem;
+      border-right: 1px solid var(--line);
+      font-size: 0.88rem;
+    }
+    .toc .toc-title {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      color: var(--ink-3);
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+    .toc ul { list-style: none; padding: 0; margin: 0; }
+    .toc li { margin: 0.45rem 0; }
+    .toc a {
+      color: var(--ink-2);
+      border: none;
+      display: block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+    .toc a:hover { background: var(--pill-bg); color: var(--ink); }
+    .wrap { padding-left: 0; }
+  }
+
+  @media print {
+    .toc { display: none; }
+    body { background: white; color: black; }
+    .card, table, .callout { break-inside: avoid; }
+  }
+
+  /* Language switcher */
+  .lang {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 0.85rem;
+    color: var(--ink-3);
+  }
+  .lang a {
+    color: var(--accent);
+    margin: 0 0.4rem;
+  }
+  .lang span { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<aside class="toc">
+  <p class="toc-title">สารบัญ</p>
+  <ul>
+    <li><a href="#tldr">สรุปสั้น</a></li>
+    <li><a href="#problem">ปัญหา</a></li>
+    <li><a href="#workload">Workload จริง</a></li>
+    <li><a href="#candidates">3 ตัวเลือกที่ดีที่สุด</a></li>
+    <li><a href="#matrix">ตารางเปรียบเทียบ</a></li>
+    <li><a href="#economics">เศรษฐศาสตร์</a></li>
+    <li><a href="#stack">Stack สำหรับ production</a></li>
+    <li><a href="#rollout">แผนเริ่มใช้งาน</a></li>
+    <li><a href="#gotchas">จุดที่ต้องระวัง</a></li>
+    <li><a href="#sources">แหล่งอ้างอิง</a></li>
+  </ul>
+</aside>
+
+<div class="wrap">
+
+<div class="lang"><a href="en.html">EN</a> · <span>TH</span></div>
+
+<header class="hero">
+  <p class="eyebrow">วิเคราะห์ Build-vs-Buy · ภาพรวม Thai LLM</p>
+  <h1>แทน Gemini &amp; GPT ในแอปเรียนภาษาอังกฤษด้วย Thai LLM</h1>
+  <p class="lede">สรุปงานวิจัยเดือนพฤษภาคม 2026 ของ Thai LLM แบบ open-source — Typhoon, OpenThaiGPT, Pathumma, SEA-LION — สำหรับรับ workload จริง (ตรวจการออกเสียง + สร้างคำถาม) พร้อมต้นทุนของการ self-host, stack ที่แนะนำ และแผน rollout แบบแบ่งเฟส</p>
+  <p class="meta">
+    <span>📅 พฤษภาคม 2026</span>
+    <span>📦 Enggenius (Unity / WebGL)</span>
+    <span>🇹🇭 Thai-first</span>
+    <span>⏱️ อ่าน 18 นาที</span>
+  </p>
+</header>
+
+<section id="tldr">
+<h2>สรุปสั้น</h2>
+
+<div class="callout good">
+  <span class="label">ข้อสรุป</span>
+  <p><strong>อย่าเพิ่ง self-host ทั้งหมดในตอนนี้</strong> — ทำทีละขั้นจะปลอดภัยและประหยัดเวลา dev กว่า:</p>
+  <ol style="margin:.5rem 0 .75rem 0">
+    <li><strong>วันนี้:</strong> ติดตั้ง <strong>LiteLLM</strong> (proxy gateway สำหรับเรียก LLM ที่รองรับหลาย provider) คั่นระหว่างแอปกับ LLM. ตั้งให้เรียก <strong>Typhoon hosted API</strong> (opentyphoon.ai) เป็นหลัก, มี Gemini เป็น fallback. ผลคือ — rate-limit หายทันที, ค่า GPU เป็นศูนย์, ใช้เวลาตั้งค่า ~1 วัน</li>
+    <li><strong>เมื่อ traffic เกิน ~50k calls/day แบบต่อเนื่อง:</strong> ค่อย self-host Typhoon-12B บน GPU เช่า (ราคาคงที่ ~$220/เดือน). เปลี่ยนได้โดยแก้แค่ endpoint ใน LiteLLM, ไม่ต้องแก้โค้ดแอป</li>
+  </ol>
+  <p>วิธีนี้ทำให้แอปไม่ผูกกับ vendor ใด vendor หนึ่ง — ถ้า Typhoon ล่ม Gemini รับช่วงต่อ, ถ้า Gemini แพงขึ้น สลับ vendor ได้โดยแก้ config ไม่กี่บรรทัด</p>
+</div>
+
+<table>
+  <thead><tr><th>งาน</th><th>โมเดลที่แนะนำ</th><th>โหมด</th></tr></thead>
+  <tbody>
+    <tr><td>ตรวจการออกเสียง (text-mode)</td><td><strong>Typhoon 2.1-Gemma3-4B</strong></td><td>Hosted หรือ self-host</td></tr>
+    <tr><td>สร้างคำถาม / ตัวอย่างประโยค</td><td><strong>Typhoon 2.5-30B-A3B</strong></td><td>Hosted (MoE)</td></tr>
+    <tr><td>ตรวจการออกเสียง (audio-mode)</td><td>Whisper-large-v3 → Typhoon-12B</td><td>Hybrid; หรืออยู่กับ OpenAI ต่อ</td></tr>
+    <tr><td>TTS</td><td>ใช้ ElevenLabs ต่อ</td><td>—</td></tr>
+    <tr><td>แปลภาษา</td><td>ใช้ Google Translate ต่อ</td><td>—</td></tr>
+    <tr><td>Routing / failover</td><td><strong>LiteLLM</strong> (Docker, OSS)</td><td>คอนฟิก YAML, OpenAI-compatible</td></tr>
+  </tbody>
+</table>
+</section>
+
+<section id="problem">
+<h2>ปัญหาปัจจุบัน</h2>
+<p>แอปเรียนภาษาอังกฤษสำหรับนักเรียนไทยตอนนี้ใช้ AI 2 เจ้าในการตรวจการออกเสียง:</p>
+<ul>
+  <li><strong>Gemini 2.5 Flash-Lite</strong> (Google) — รับ transcript เป็นข้อความ → ให้คะแนนการออกเสียง (โหมด text)</li>
+  <li><strong>GPT-4o-audio-preview</strong> (OpenAI) — รับเสียงพูดดิบๆ → ให้คะแนนพร้อมจับ accent, intonation (โหมด audio)</li>
+</ul>
+<p>การพึ่ง vendor ภายนอกแบบนี้มี 3 ความเสี่ยงที่ควรกังวล:</p>
+<ol>
+  <li><strong>Vendor lock-in (ผูกขาดกับเจ้าเดียว).</strong> ถ้า Google ปรับราคา Gemini ขึ้น 3 เท่าเดือนหน้า เราควบคุมไม่ได้. ถ้า OpenAI deprecate <code>gpt-4o-audio-preview</code> (เคยทำกับ model อื่นมาแล้ว) ทุกการเรียก API จะพังทันทีจนกว่าจะ migrate. ที่แย่กว่านั้น — ถ้าใครคนใดคนหนึ่งล่มในชั่วโมงทอง โหลดเรียน เด็กรอ feedback ไม่ได้</li>
+  <li><strong>ต้นทุน token เพิ่มตรงตามจำนวนผู้ใช้.</strong> ที่ 1,000 user/วัน ค่าใช้จ่ายอาจอยู่ที่ ~$5/วัน ($150/เดือน). พอขยายเป็น 100,000 user/วัน กลายเป็น ~$500/วัน ($15,000/เดือน) — hosted API ไม่มีส่วนลดเชิงปริมาณที่จริงจัง. ยิ่ง user เยอะ ยิ่งเสียค่า token ตรงๆ</li>
+  <li><strong>Sovereignty (อธิปไตยของข้อมูล).</strong> เสียงพูดของนักเรียนไทยถูก process ที่ data center ในอเมริกา, อยู่นอก data residency ของไทย/อาเซียน. ลูกค้าระดับองค์กร โดยเฉพาะหน่วยราชการหรือโรงเรียนใหญ่ๆ บางแห่งไม่อนุญาตให้ส่งข้อมูลผู้ใช้ออกนอกประเทศ — ตัดโอกาสการขายไปเลย</li>
+</ol>
+<p><strong>เป้าหมาย:</strong> หาเส้นทางไปสู่ self-hosted Thai LLM (LLM ที่เรา host เองบน server ของเรา) โดยที่ product ไม่พังในวันแรก และ migration ทำได้แบบค่อยเป็นค่อยไป</p>
+</section>
+
+<section id="workload">
+<h2>Workload จริง (อย่าข้าม)</h2>
+<p>การเลือก LLM โดยไม่วัด workload ก่อนคือการเดา — เลือกผิดแล้วต้อง migrate ใหม่เสียเวลามากกว่ามานั่งวัดก่อน 1 วัน. มาดูว่า call แต่ละครั้งของแอปจริงๆ หน้าตาเป็นยังไง:</p>
+<ul>
+  <li><strong>ขนาด prompt</strong>: input ประมาณ <strong>500 tokens</strong> (รวม system prompt + ประโยคอ้างอิง + สิ่งที่นักเรียนพูด). 500 tokens ≈ ~1 หน้า A4 แบบย่อ — ไม่ใหญ่</li>
+  <li><strong>Output</strong>: 200–400 tokens แบบ <strong>structured JSON</strong> (JSON ที่มีโครงสร้างตายตัว — เช่น ต้องมี field <code>overall_score</code> เป็นตัวเลข 0-100, <code>words[]</code> เป็น array ของคำ + คะแนนแต่ละคำ, ฯลฯ). โมเดลต้อง<strong>ตอบให้ตรง schema</strong>เป๊ะๆ ไม่งั้นโค้ด parse ไม่ได้</li>
+  <li><strong>Latency</strong>: real-time — นักเรียนกำลังรอ feedback อยู่. เป้า <strong>p95 ≤ 5 วินาที</strong> (95% ของ request ต้องเสร็จภายใน 5 วินาที). p50 (ค่ามัธยฐาน) ควรอยู่ที่ ~1-2 วินาที</li>
+  <li><strong>ปริมาณ</strong>: ประมาณ <strong>500–10,000 calls/วัน</strong> ตามจำนวนนักเรียนที่ active. ที่ peak (ช่วงเย็นหลังเลิกเรียน) อาจกระจุกเป็นต่อนาที 50-100 requests</li>
+  <li><strong>2 โหมดการทำงาน</strong>:
+    <ul>
+      <li><strong>text-mode</strong> — รับ transcript (เสียงที่ถูก speech-to-text แปลงเป็น text แล้ว) → ให้คะแนน. ใช้ LLM อะไรก็ได้ที่ฉลาด</li>
+      <li><strong>audio-mode</strong> — รับเสียงพูดดิบๆ → ให้คะแนน (โมเดลฟัง accent, fluency, intonation จากเสียงจริง). <strong>ตอนนี้ยังไม่มี open Thai LLM ตัวไหนรับ audio ได้โดยตรง</strong></li>
+    </ul>
+  </li>
+  <li><strong>ไม่ได้ใช้ function calling</strong> — แอปแค่บอก LLM ว่า "ตอบเป็น JSON ตาม schema นี้" ผ่าน <code>response_schema</code> (Gemini) หรือ <code>response_format: json_object</code> (OpenAI). ไม่ใช่ tool-use ที่ซับซ้อน</li>
+</ul>
+<div class="callout warn">
+  <span class="label">ข้อจำกัดสำคัญ — โหมด audio</span>
+  <p>ถ้าจะคงโหมด audio ไว้ (เพราะมันใช้ acoustic signal วัดการออกเสียงได้แม่นกว่า), <strong>จะแทน 1:1 ด้วย Thai LLM ตัวเดียวไม่ได้</strong> — ต้องเพิ่มขั้นตอน Whisper (โมเดล speech-to-text ของ OpenAI ที่ open-source) มา preprocess เสียงเป็น transcript ก่อน, แล้วค่อยส่งให้ Thai LLM ประเมิน.</p>
+  <p>ทางเลือกที่ใช้ได้:</p>
+  <ul>
+    <li><strong>Hybrid</strong> (แนะนำ) — text-mode → Thai LLM, audio-mode → OpenAI ต่อ. ลดความซับซ้อนของการ migrate</li>
+    <li><strong>Full self-host</strong> — Whisper-large-v3 + Typhoon-12B รันคู่กันบน GPU เดียว. แม่นกว่าในแง่ language quality แต่อาจสูญ acoustic signal บางส่วน</li>
+    <li><strong>Text-only</strong> — เลิกโหมด audio ไปเลย ใช้แค่ transcript. ง่ายสุด แต่คุณภาพการประเมินจะลด</li>
+  </ul>
+</div>
+</section>
+
+<section id="candidates">
+<h2>3 ตัวเลือกที่ดีที่สุด</h2>
+
+<div class="card">
+  <h3><span class="rank">1</span>Typhoon 2.x — SCB-10X</h3>
+  <p><span class="pill good">ภาษาไทยดีที่สุด</span> <span class="pill good">Function calling</span> <span class="pill good">มี hosted API</span> <span class="pill">Apache-2.0 (ตัว 2.5)</span></p>
+  <p>พัฒนาโดยทีม SCB-10X ของธนาคารไทยพาณิชย์. มีหลายขนาดให้เลือกตามงาน:</p>
+  <ul>
+    <li><strong>4B</strong> (base = Gemma3) — เล็กพอรันบน GPU เดียวได้ที่ load production</li>
+    <li><strong>12B</strong> (Gemma3, context 128K tokens) — ขนาดกลาง ใช้กับ context ยาวๆ ได้</li>
+    <li><strong>30B-A3B</strong> (Qwen3 MoE — Mixture of Experts) — ขนาดใหญ่แต่ active แค่ 3B ตอน inference จริง, ได้คุณภาพระดับ 30B แต่เร็วเท่า 3B</li>
+    <li><strong>70B</strong> (Llama 3.1) — ใหญ่สุด คุณภาพสูงสุด แต่ต้องใช้ GPU ราคาแพง</li>
+  </ul>
+  <p>เป็น Thai LLM <strong>ตัวเดียว</strong>ที่มีตัวเลข function calling แบบ BFCL (Berkeley Function Calling Leaderboard — เกณฑ์มาตรฐานวัดความสามารถในการเรียก tool ของ LLM) ตีพิมพ์ — ได้คะแนน <strong>75% สำหรับภาษาไทย / 79% สำหรับภาษาอังกฤษ</strong>, ชนะ baseline ของ Qwen2.5 และ Llama3 ในหมวดเดียวกัน.</p>
+  <p>มี hosted API ที่ <a href="https://opentyphoon.ai/">opentyphoon.ai</a> ราคา ~$0.10 ต่อ 1 ล้าน tokens (ถูกกว่า Gemini Flash ประมาณ 14 เท่า). ขึ้นอันดับ 1 ของทุก leaderboard ภาษาไทยที่เปิดเผยต่อสาธารณะ.</p>
+  <p class="why"><strong>ทำไมเหมาะกับ Enggenius:</strong></p>
+  <ul style="margin-top:.25rem">
+    <li>ตัว 4B รันบน GPU เช่า L40 ตัวเดียว ($220/เดือน) ได้สบายแม้ที่ load production</li>
+    <li>JSON schema เชื่อถือได้ (ตอบตรง schema ทุกครั้ง — สำคัญมากสำหรับ Enggenius เพราะแอปต้อง parse JSON)</li>
+    <li>Feedback ภาษาไทยอ่านเป็นธรรมชาติ ไม่ใช่สำนวนแปลแข็งๆ</li>
+    <li>ถ้าไม่อยาก self-host เลย — hosted API ใช้ได้เลย ไม่ต้องเขียนโค้ดเพิ่ม รองรับ OpenAI-compatible format</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3><span class="rank r2">2</span>OpenThaiGPT — NECTEC / AIEAT</h3>
+  <p><span class="pill good">เก่ง reasoning</span> <span class="pill warn">Qwen license (เพดาน 100M MAU)</span> <span class="pill">มี playground ฟรี</span></p>
+  <p>พัฒนาโดย <strong>NECTEC</strong> (สำนักงานพัฒนาวิทยาศาสตร์และเทคโนโลยีแห่งชาติ) ร่วมกับ <strong>AIEAT</strong> (Artificial Intelligence Entrepreneur Association of Thailand). โครงการระดับชาติ.</p>
+  <p>เวอร์ชันล่าสุดคือ <strong>1.6 + R1-32B</strong> (ออก มี.ค. 2025).</p>
+  <ul>
+    <li>ตัว <strong>R1-32B</strong> เป็นรุ่น reasoning (ใช้ chain-of-thought ในการคิด — เหมือน DeepSeek-R1, OpenAI o1). ทำคะแนน <strong>AIME24-TH 56.7</strong> (ข้อสอบคณิตศาสตร์โอลิมปิกเวอร์ชันแปลไทย) และ <strong>MATH500-TH 83.8</strong> — ชนะ DeepSeek-R1 ขนาด 70B ทั้งที่ตัวเองเล็กกว่าครึ่ง</li>
+    <li>รองรับ tool-calling ที่ inherit มาจาก Qwen2.5 base</li>
+    <li>Context: <strong>131K tokens input</strong> / 8K output</li>
+  </ul>
+  <p>มี playground ฟรีที่ <a href="https://openthaigpt.aieat.or.th/">openthaigpt.aieat.or.th</a> สำหรับลองเล่น แต่ไม่มี enterprise SLA — ใช้ใน production ต้องเตรียม fallback เอง.</p>
+  <p class="why"><strong>ทำไมเหมาะ:</strong> ถ้าในอนาคตต้องการ reasoning ขั้นสูง — เช่น coaching แกรมม่าที่ซับซ้อน, บทสนทนายาวข้ามบทเรียน, อธิบายทำไมประโยคนี้ผิด — ตัว R1-32B เป็นเพดานสูงสุดของ Thai LLM ในด้าน reasoning ตอนนี้.</p>
+  <p class="why"><strong>ข้อจำกัด:</strong> รอบ release ช้ากว่า SCB-10X ตามสไตล์โครงการรัฐ — อาจรอเวลาที่ feature ใหม่ๆ ถูก backport มาช้า. license ของ Qwen ติดเพดาน 100M MAU (ผู้ใช้ active ต่อเดือน) — สำหรับ SME ไม่มีปัญหา แต่สำหรับ B2C ที่ scale ใหญ่ต้องระวัง.</p>
+</div>
+
+<div class="card">
+  <h3><span class="rank r3">3</span>Pathumma-LLM — NECTEC</h3>
+  <p><span class="pill good">Apache-2.0</span> <span class="pill warn">คุณภาพระดับกลาง</span> <span class="pill">หน่วยงานราชการสนับสนุน</span></p>
+  <p>พัฒนาโดย NECTEC (เจ้าเดียวกับ OpenThaiGPT แต่คนละทีม) — โปรเจกต์ของรัฐที่เน้นเรื่อง<strong>เสรีของ license</strong>เป็นหลัก.</p>
+  <ul>
+    <li><strong>Pathumma-llm-text-1.0.0</strong> — base คือ Qwen2.5-7B, ขนาด 7B, ctx 128K</li>
+    <li><strong>Pathumma-vision-2.0.0-preview</strong> — เวอร์ชันรับภาพ (multimodal) กำลังพัฒนา</li>
+    <li><strong>Pathumma-audio-1.0.0</strong> — เวอร์ชันรับเสียง (อาจเป็นทางเลือกในอนาคตสำหรับ audio-mode ของ Enggenius)</li>
+  </ul>
+  <p>คุณภาพภาษาไทยตามหลัง Typhoon และ OpenThaiGPT 1.5-14B พอสมควร. มีคน eval แบบ independent น้อย — ส่วนใหญ่เป็นรายงานของ NECTEC เอง. Host ฟรีที่ <a href="https://aiforthai.in.th/">aiforthai.in.th</a> สำหรับทดลอง.</p>
+  <p class="why"><strong>ทำไมเหมาะ:</strong> เป็น Thai LLM ตัวเดียวที่ใช้ <strong>license แบบ Apache-2.0</strong> — เสรีที่สุดในกลุ่มนี้, ไม่มีเพดาน MAU, ไม่มีเงื่อนไขเชิงพาณิชย์. ใช้ในงานราชการ/B2B องค์กรขนาดใหญ่ที่ procurement เข้มงวดได้สบาย โดยไม่ต้องอธิบายเงื่อนไขของ Gemma ToU หรือ Qwen license.</p>
+  <p class="why"><strong>ข้อจำกัด:</strong> คุณภาพด้อยกว่า Typhoon จริงๆ — โดยเฉพาะภาษาไทยแบบเป็นธรรมชาติและความสามารถในการตอบ JSON schema. แนะนำเป็น <strong>Plan B</strong> สำหรับเก็บไว้เผื่อกรณีที่ license ของ Gemma หรือ Qwen กลายเป็นปัญหาในอนาคต.</p>
+</div>
+
+<h3>ตัวอื่นๆ ที่ควรรู้จัก (แต่ไม่ใช่ตัวเลือกหลัก)</h3>
+<ul>
+  <li><strong>SEA-LION v3 / v3.5</strong> (AI Singapore) — ดีที่สุดถ้าต้องรองรับหลายภาษาในเอเชียตะวันออกเฉียงใต้ (Bahasa, Vietnamese, Tamil ฯลฯ). แต่ถ้าใช้แค่ภาษาไทย Typhoon ทำได้ดีกว่าเพราะ tune มาเฉพาะ</li>
+  <li><strong>WangchanLion / WangchanX</strong> (VISTEC สถาบันวิทยาสิริเมธี) — เน้นเป็น <strong>fine-tuning pipeline</strong> (เครื่องมือ + dataset สำหรับเอาไป fine-tune เอง) มากกว่าตัวโมเดลสำเร็จรูป. แข็งใน Thai MRC (Machine Reading Comprehension — งานอ่านแล้วตอบคำถาม) แต่ในการสนทนาทั่วไปยังอ่อนกว่า Typhoon</li>
+  <li><strong>THaLLE</strong> (KBTG ธนาคารกสิกร) — fine-tune เฉพาะทางสำหรับ <strong>การเงิน</strong>. เก่งเรื่อง CFA, การวิเคราะห์งบ. เกินความจำเป็นสำหรับแอปเรียนภาษา</li>
+  <li><strong>SeaLLM-v3 ดั้งเดิม</strong> (Alibaba DAMO) — เคยเป็นตัวเลือกหลักสำหรับภาษาเอเชียตะวันออกเฉียงใต้ แต่ตอนนี้กลายเป็น legacy แล้ว — AI Singapore แยกออกมาทำ SEA-LION ต่อยอดเอง ไม่อัปเดตอีก</li>
+</ul>
+</section>
+
+<section id="matrix">
+<h2>ตารางเปรียบเทียบเต็ม</h2>
+<p><strong>วิธีอ่าน:</strong> ดู column "Thai bench" เพื่อรู้คุณภาพภาษาไทย, "Fn-call" เพื่อรู้ว่าตอบ JSON schema ได้น่าเชื่อถือไหม, "License" เพื่อรู้เพดานเชิงพาณิชย์, "Hosted API" เพื่อรู้ว่าใช้ได้เลยไม่ต้อง self-host หรือไม่.</p>
+<div class="scroll-x">
+<table>
+  <thead><tr>
+    <th>โมเดล</th><th>Params</th><th>Base</th><th>License</th><th>Ctx</th>
+    <th>Fn-call</th><th>Thai bench</th><th>Hosted API</th><th>อัปเดตล่าสุด</th>
+  </tr></thead>
+  <tbody>
+    <tr><td><strong>Typhoon 2.5-30B-A3B</strong></td><td class="num">30B (active 3B)</td><td>Qwen3-MoE</td><td>Apache-2.0</td><td class="num">32K</td><td><span class="pill good">ดีมาก</span></td><td>≈ Gemini Flash</td><td>$0.10/M</td><td class="num">ต.ค. 2025</td></tr>
+    <tr><td><strong>Typhoon 2.1-Gemma3-12B</strong></td><td class="num">12B</td><td>Gemma3</td><td>Gemma ToU</td><td class="num">128K</td><td><span class="pill good">ดีมาก</span></td><td>≈ Typhoon 2-70B</td><td>มี</td><td class="num">มี.ค. 2025</td></tr>
+    <tr><td><strong>Typhoon 2.1-Gemma3-4B</strong></td><td class="num">4B</td><td>Gemma3</td><td>Gemma ToU</td><td class="num">128K</td><td><span class="pill good">ดี</span></td><td>เก่งสำหรับขนาด</td><td>มี</td><td class="num">มี.ค. 2025</td></tr>
+    <tr><td>OpenThaiGPT-R1-32B</td><td class="num">32B</td><td>DeepSeek-R1-Qwen</td><td>Qwen</td><td class="num">128K</td><td>มี</td><td>AIME24-TH 56.7</td><td>Playground ฟรี</td><td class="num">เม.ย. 2025</td></tr>
+    <tr><td>OpenThaiGPT 1.5-14B</td><td class="num">14B</td><td>Qwen2.5</td><td>Qwen</td><td class="num">131K</td><td>มี</td><td>ThaiExam 58.4</td><td>Playground ฟรี</td><td class="num">ต.ค. 2024</td></tr>
+    <tr><td><strong>Pathumma-llm-text</strong></td><td class="num">7B</td><td>Qwen2.5</td><td><strong>Apache-2.0</strong></td><td class="num">128K</td><td>มี</td><td>ระดับกลาง</td><td>aiforthai.in.th</td><td class="num">2024</td></tr>
+    <tr><td>Llama-SEA-LION-v3-70B</td><td class="num">71B</td><td>Llama 3.1</td><td>Llama 3.1</td><td class="num">128K</td><td>Inherit</td><td>SEA-HELM แข็ง</td><td>มี</td><td class="num">2025</td></tr>
+    <tr><td>Gemma-SEA-LION-v3-9B</td><td class="num">9B</td><td>Gemma2</td><td>Gemma ToU</td><td class="num">128K</td><td>Inherit</td><td>SEA แข็ง</td><td>มี</td><td class="num">2025</td></tr>
+    <tr><td>THaLLE-0.2-8B</td><td class="num">8B</td><td>Qwen2.5</td><td>Qwen</td><td class="num">128K</td><td>มี</td><td>เฉพาะทางการเงิน</td><td>ไม่มี</td><td class="num">ม.ค. 2026</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<section id="economics">
+<h2>เศรษฐศาสตร์ของการ self-host</h2>
+<p>ตามจริงคือ: ที่ volume ระดับ SME (~50k req/day), การ self-host <strong>ไม่ได้ถูกกว่า hosted Gemini Flash-Lite</strong> เลย. ทำไม?</p>
+<ul>
+  <li><strong>Hosted API คิดเงินตามการใช้จริง</strong> — เรียก 1 ครั้งจ่าย 1 ครั้ง. ที่ volume ต่ำ ค่าใช้จ่ายจึงต่ำมาก</li>
+  <li><strong>Self-host มีต้นทุนคงที่</strong> — เช่า GPU ไว้ตลอด 24 ชม. ต่อให้ไม่มีคนใช้ก็ต้องจ่าย. กำไรของการ self-host จะเริ่มเห็นชัดตอน volume สูงขึ้นจนเริ่ม "เต็ม" GPU</li>
+</ul>
+<p>เพราะฉะนั้น <strong>การลงทุน self-host ในช่วงต้นคือการเสียเงินเพิ่ม</strong> เพื่อแลกกับสิ่งที่ไม่ใช่ราคา — เช่น ไม่ติด rate-limit, ควบคุม latency เอง, ข้อมูลไม่ออกประเทศ.</p>
+
+<h3>ตารางเปรียบเทียบต้นทุน (USD/เดือน)</h3>
+<div class="scroll-x">
+<table>
+  <thead><tr><th>ปริมาณ</th><th>Hosted Gemini Flash-Lite</th><th>Typhoon hosted API</th><th>Self-host L40 (vLLM)</th></tr></thead>
+  <tbody>
+    <tr><td>50k req/วัน (SME)</td><td class="num">~$75</td><td class="num">~$10–25</td><td class="num">~$220 + ops</td></tr>
+    <tr><td>500k req/วัน (กลาง)</td><td class="num">~$750</td><td class="num">~$100–250</td><td class="num">~$220</td></tr>
+    <tr><td>5M req/วัน (ใหญ่)</td><td class="num">~$7,500</td><td class="num">~$1,000+</td><td class="num">~$1,100 (H100)</td></tr>
+  </tbody>
+</table>
+</div>
+<p><strong>จุดคุ้มทุนของ self-host:</strong> เมื่อ traffic ผ่าน ~50k req/day อย่างต่อเนื่อง — ราคา fixed ของ GPU ($220) เริ่มถูกกว่า hosted API. ที่ 500k+ req/day, self-host ถูกกว่า hosted API หลายเท่า.</p>
+
+<h3>ตัวเลือก GPU เช่า (ตามราคา)</h3>
+<ul>
+  <li><strong>ถูกสุด — Vast.ai L40 40GB</strong> ~$0.31/ชม. (~$220/เดือน). รัน Typhoon 2.1-Gemma3-12B แบบ Q4_K_M (โมเดลถูก quantize ให้ขนาดเล็กลง) ได้สบาย. เหมาะสำหรับ Phase 3 ของแผน</li>
+  <li><strong>ระดับกลาง — RunPod A100 80GB</strong> ~$0.79/ชม. ($350–570/เดือน ขึ้นกับเช่าแบบ on-demand หรือ reserved). รัน 12B แบบ FP16 (precision เต็ม) ได้พร้อมเหลือ memory สำหรับ KV-cache (cache ของ context ที่ผ่านมา ทำให้ตอบเร็วขึ้นในบทสนทนายาว)</li>
+  <li><strong>Production — H100 80GB</strong> ~$1.50/ชม. ($1,100/เดือน). เกินความจำเป็นจนกว่าแอปจะมี traffic >200 requests/second (ระดับ enterprise). Typhoon 2.5-30B-A3B (MoE) เคลมว่าทำได้ <strong>3,000 tokens/วินาที</strong>ที่ H100 — เร็วมาก</li>
+</ul>
+<div class="callout">
+  <span class="label">ข้อแนะนำ</span>
+  <p>อย่าลงทุน GPU ก่อน traffic จริงๆ จะถึงจุดคุ้มทุน. <strong>เริ่มจาก Typhoon hosted API ($10-25/เดือน)</strong> ก่อน ค่อยขยับขึ้น L40 ตอนเห็นเลข traffic ที่จริงในระบบ.</p>
+</div>
+</section>
+
+<section id="stack">
+<h2>Stack สำหรับ production</h2>
+<p>มี 2 ส่วนสำคัญที่ต้องเลือก: (1) <strong>Routing layer</strong> — ตัวกลางระหว่างแอปกับ LLM provider, (2) <strong>Serving layer</strong> — ตัวรัน LLM จริงๆ (เฉพาะตอน self-host).</p>
+
+<h3>1. Routing layer: LiteLLM</h3>
+<p><a href="https://github.com/BerriAI/litellm">LiteLLM</a> คือ <strong>proxy server</strong> ที่ใส่คั่นระหว่างแอปกับ LLM. หน้าที่ของมัน:</p>
+<ul>
+  <li>รับ request ที่หน้าตาเหมือน OpenAI API (มาตรฐานที่ทุกคนคุ้น) แล้วส่งต่อไป provider ที่กำหนด — Typhoon, Gemini, Claude, OpenAI ฯลฯ</li>
+  <li><strong>Fallback chain</strong> — ถ้า provider หลักล่ม สลับไปตัวสำรองอัตโนมัติ ไม่ต้องเขียน try/catch ในแอป</li>
+  <li><strong>Retry + cooldown</strong> — ถ้า request fail ลองใหม่อัตโนมัติ มีหน่วงเวลาเพื่อไม่ spam</li>
+  <li><strong>Budget cap</strong> — กำหนดเพดานค่าใช้จ่ายต่อเดือน เกินแล้ว block</li>
+  <li><strong>Semantic cache</strong> — ถ้า prompt ใกล้เคียงกับที่เคยถามแล้ว (เช่น แบบฝึกหัดเดิม) ตอบจาก cache ทันที — ประหยัด token มหาศาล</li>
+</ul>
+<p>Run ด้วย Docker container เดียว ฟรี. ทางเลือกอื่น:</p>
+<ul>
+  <li><strong>OpenRouter</strong> — เป็น hosted SaaS (ไม่ต้อง deploy เอง) แต่ควบคุมได้น้อยกว่า, มี markup เล็กน้อย</li>
+  <li><strong>Portkey</strong> — ระดับ enterprise (มี advanced guardrails, governance) แต่เกินความจำเป็นสำหรับ SME</li>
+</ul>
+<p><strong>ตัวอย่าง config:</strong></p>
+<pre><code># litellm-config.yaml — ตัวอย่าง
+model_list:
+  - model_name: pronounce            # ชื่อที่แอปเรียก
+    litellm_params:
+      model: openai/typhoon-v2.1-12b-instruct
+      api_base: https://api.opentyphoon.ai/v1
+      api_key: os.environ/TYPHOON_API_KEY
+
+router_settings:
+  # ถ้า Typhoon ล่ม → fallback ไป Gemini → ถ้า Gemini ล่มอีก → OpenAI
+  fallbacks:
+    - pronounce: ["gemini-flash-lite", "openai-gpt-4o-mini"]
+  # cache prompt ซ้ำๆ ของบทเรียนเดียวกัน
+  cache:
+    type: "redis"
+    redis_host: "localhost"</code></pre>
+
+<h3>2. Serving layer (ตอน self-host): vLLM</h3>
+<p><a href="https://github.com/vllm-project/vllm">vLLM</a> คือ <strong>inference server</strong> — โปรแกรมที่รัน LLM model file (เช่น .safetensors, .gguf) แล้ว expose เป็น HTTP API ที่หน้าตาเหมือน OpenAI. ทำงานบน GPU.</p>
+<p><strong>ฟีเจอร์เด่นของ vLLM:</strong></p>
+<ul>
+  <li><strong>Continuous batching</strong> — รวม request หลายๆ ตัวที่เข้ามาพร้อมกันเป็น batch เดียว (ใช้ GPU เต็มประสิทธิภาพ)</li>
+  <li><strong>PagedAttention</strong> — เทคนิคจัดการ memory แบบใหม่ที่ลดการใช้ RAM ของ KV-cache ลงเยอะ ทำให้รับ concurrent users ได้มากขึ้น</li>
+  <li><strong>รองรับ quantization native</strong> — AWQ, GPTQ, FP8 ใส่เข้าไปใช้ได้เลย</li>
+  <li>คำสั่งเดียวก็ขึ้น: <code>vllm serve scb10x/typhoon-v2.1-gemma3-12b</code></li>
+</ul>
+<p><strong>ทางเลือกอื่น:</strong></p>
+<ul>
+  <li><strong>TGI</strong> (Text Generation Inference จาก HuggingFace) — ใช้ได้ดีใกล้เคียง vLLM แต่ตามหลังเล็กน้อยใน architecture ใหม่ๆ (เช่น Qwen3-MoE)</li>
+  <li><strong>Ollama / llama.cpp</strong> — ดีสำหรับ dev บน laptop หรือเครื่องตัวเอง. แต่<strong>อย่าเอามา serve production</strong> — ไม่มี continuous batching จริงๆ จะรับ concurrent users ได้น้อยมาก</li>
+  <li><strong>หมายเหตุ:</strong> ถ้าเลือกใช้ไฟล์โมเดลแบบ GGUF (พบบ่อยในชุมชน open) — <strong>อย่ารันผ่าน vLLM</strong> เพราะ performance แย่ (~93 tok/s). ใช้ llama.cpp ตรงๆ ดีกว่าสำหรับ GGUF</li>
+</ul>
+
+<h3>3. Quantization (บีบโมเดลให้เล็กลง)</h3>
+<p><strong>Quantization</strong> = การลดความแม่นของตัวเลข weights ในโมเดล (เช่น จาก float32 → int4) เพื่อให้ขนาดเล็กลงและรันเร็วขึ้น. ราคาที่จ่ายคือคุณภาพลดเล็กน้อย.</p>
+<p><strong>เลือกอันไหนดี:</strong></p>
+<ul>
+  <li><strong>Q4_K_M (GGUF)</strong> หรือ <strong>AWQ-INT4 (safetensors)</strong> — จุดที่คุ้มที่สุด. โมเดลเล็กลง ~75%, ความเร็วเพิ่ม ~2-3 เท่า, คุณภาพลดน้อยมาก (perplexity เพิ่ม ~+0.05 บน Llama-3.1-8B)</li>
+  <li><strong>FP8 (vLLM)</strong> — ดีกว่า Q4 ถ้า GPU รองรับ (Hopper, Ada Lovelace). ความเร็ว ~2× ของ FP16, คุณภาพแทบไม่ลด</li>
+  <li><strong>หลีกเลี่ยง Q3 หรือต่ำกว่าสำหรับภาษาไทย</strong> — tokenizer ภาษาไทยอัดข้อมูลหนาแน่นกว่าภาษาอังกฤษเยอะ (1 token ของไทย = หลายตัวอักษร), ฉะนั้นเมื่อ precision ลด ความเสียหายต่อภาษาไทยจะหนักกว่าภาษาอังกฤษ</li>
+</ul>
+</section>
+
+<section id="rollout">
+<h2>แผน rollout แบบแบ่งเฟส</h2>
+<p>หลักการ: <strong>ลงทุนต่ำสุดก่อน เห็นผลจริงค่อยขยับ</strong>. ทุกเฟสไม่ต้องแก้โค้ดแอปเลย — เพราะ LiteLLM คั่นกลางไว้แล้ว.</p>
+<div class="phases">
+  <div class="phase">
+    <h4>เฟส 1 · สัปดาห์ 1</h4>
+    <p class="title">วาง LiteLLM gateway (ไม่ต้องใช้ GPU)</p>
+    <p class="body">รัน LiteLLM ใน Docker. ตั้งค่า Primary = opentyphoon.ai, Fallback = Gemini Flash-Lite, สำรองอีกชั้น = OpenAI. เปิด semantic cache เพื่อลด token ซ้ำซ้อน. ผลที่ได้: rate-limit หาย, ค่าใช้จ่ายลด ~50%, ถ้า provider ใดล่ม ระบบจะ failover อัตโนมัติ. ใช้เวลา ~1 วัน. <strong>วัดความสำเร็จ:</strong> p95 latency ไม่เพิ่ม + ไม่มี request fail ในช่วง stress test</p>
+  </div>
+  <div class="phase">
+    <h4>เฟส 2 · สัปดาห์ 2</h4>
+    <p class="title">Benchmark prompt จริงใน production</p>
+    <p class="body">นำ prompt จาก GeminiPronunciationService.cs มารันผ่าน Typhoon 4B / 12B / 30B-A3B เทียบกับ Gemini. วัด 4 อย่าง: (1) schema compliance — โมเดลตอบ JSON ถูก format ทุกครั้งไหม, (2) latency p50/p95, (3) ความเป็นธรรมชาติของภาษาไทย (ให้คนตรวจมือ 50 ตัวอย่าง), (4) ค่าใช้จ่ายต่อ 1k requests. เลือกตัวที่ชนะตาม use case แต่ละแบบ. <strong>วัดความสำเร็จ:</strong> มีข้อมูลพอที่จะตัดสินใจ</p>
+  </div>
+  <div class="phase">
+    <h4>เฟส 3 · เมื่อคุ้มค่า</h4>
+    <p class="title">Self-host Typhoon-12B</p>
+    <p class="body">เกิดเมื่อ traffic แตะ ~50k req/วันแบบต่อเนื่อง 2-3 สัปดาห์ติด. เช่า GPU L40 จาก Vast.ai ($220/เดือน) รัน Typhoon 2.1-Gemma3-12B แบบ Q4_K_M ผ่าน vLLM. ใน LiteLLM แค่เพิ่ม model entry ใหม่ + เปลี่ยน Primary มาเป็น endpoint ตัวเอง — โค้ดแอป<strong>ไม่ต้องแก้แม้แต่บรรทัดเดียว</strong>. <strong>วัดความสำเร็จ:</strong> ค่าใช้จ่ายต่อเดือนลดเทียบกับ hosted, latency ไม่เพิ่ม</p>
+  </div>
+  <div class="phase">
+    <h4>เฟส 4 · เลือกได้ (ทำเมื่อพร้อม)</h4>
+    <p class="title">Whisper สำหรับโหมด audio</p>
+    <p class="body">ติดตั้ง Whisper-large-v3 บน GPU ตัวเดียวกัน (ใช้ CTranslate2 หรือ whisper.cpp ให้เบาขึ้น). Pipeline ใหม่: เสียง → Whisper STT → transcript → Typhoon → JSON. หรือ <strong>ทางเลือก B</strong>: เก็บโหมด audio ไว้ที่ OpenAI ถาวรเป็น hybrid ก็ได้ (ลด complexity). <strong>วัดความสำเร็จ:</strong> คุณภาพการให้คะแนนการออกเสียงไม่ตกเกิน 5%</p>
+  </div>
+</div>
+</section>
+
+<section id="gotchas">
+<h2>จุดที่ต้องระวัง</h2>
+
+<div class="callout bad">
+  <span class="label">ไม่มี Thai LLM ตัวไหนรับ audio ได้</span>
+  <p><strong>ปัญหา:</strong> โหมด audio ของแอปปัจจุบันใช้ <code>gpt-4o-audio-preview</code> ที่รับเสียงดิบเข้าไปประเมินได้เลย. แต่<strong>ยังไม่มี open Thai LLM ตัวไหนรับ audio เป็น input ได้ตรงๆ</strong>.</p>
+  <p><strong>วิธีแก้:</strong></p>
+  <ul style="margin:.5rem 0">
+    <li>ใส่ <strong>Whisper-large-v3</strong> (open-source STT จาก OpenAI) เป็น preprocessor — แปลงเสียงเป็น transcript ก่อน, แล้วค่อยส่งให้ Thai LLM ประเมิน</li>
+    <li>หรือทำ <strong>hybrid</strong> — text-mode ใช้ Thai LLM, audio-mode คงไว้ที่ OpenAI ตลอดไป (ง่ายสุด)</li>
+  </ul>
+</div>
+
+<div class="callout warn">
+  <span class="label">Quantization สำหรับภาษาไทยอ่อนไหวกว่าภาษาอังกฤษ</span>
+  <p><strong>ปัญหา:</strong> tokenizer ภาษาไทยใช้ token น้อยกว่าภาษาอังกฤษในการแทนข้อความขนาดเดียวกัน — แปลว่าแต่ละ token "อัด" ความหมายไว้แน่นกว่า. ฉะนั้นเมื่อ quantize ลด precision ของ weights, ผลกระทบต่อภาษาไทยจะรุนแรงกว่าภาษาอังกฤษ.</p>
+  <p><strong>คำแนะนำ:</strong> ใช้ <strong>Q4_K_M เป็นขั้นต่ำสุด</strong>. FP8 ดีกว่ามากถ้า GPU รองรับ. <strong>อย่าใช้ Q3 หรือต่ำกว่ากับงานภาษาไทย</strong> — คุณภาพจะตกเห็นได้ชัด</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">Function calling เชื่อถือได้แค่ไหน</span>
+  <p><strong>ปัญหา:</strong> งาน Enggenius ต้อง parse JSON ที่ LLM ตอบ. ถ้า LLM ตอบ JSON ผิด format (เช่น ลืม field, ใส่ comma เกิน, เพิ่มข้อความก่อน/หลัง JSON) แอปจะ crash.</p>
+  <p>มีแค่ <strong>Typhoon</strong> ที่ตีพิมพ์ตัวเลข BFCL (Berkeley Function Calling Leaderboard) — 75% TH / 79% EN. OpenThaiGPT และ Pathumma รองรับได้ตามที่ inherit จาก Qwen2.5 แต่ยังไม่มีใคร eval ด้วย prompt ภาษาไทยอย่างเป็นทางการ.</p>
+  <p><strong>คำแนะนำ:</strong> ไม่ว่าจะเลือกเจ้าไหน — <strong>เขียน retry + repair logic ไว้เสมอ</strong>: ถ้า parse JSON fail ให้ retry, ถ้ายัง fail อีกให้ส่งไป fallback provider</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">Code-switching (ไทยปนอังกฤษ)</span>
+  <p><strong>ปัญหา:</strong> นักเรียนไทยจริงๆ พูดภาษาผสม — เช่น "ฉันชอบ pizza มากกว่า burger", "เปิด tab ใน browser", "ฉัน save งานแล้ว". LLM ที่ tune มาเฉพาะภาษาไทยล้วนๆ อาจสับสน หรือพยายามแปลคำอังกฤษกลับมาเป็นไทยจนผิดความหมาย.</p>
+  <p><strong>เกณฑ์:</strong> Typhoon และ SEA-LION จัดการ code-switching ได้ดี (เพราะ train บน data ที่มี mixed language). OpenThaiGPT 1.5 บางครั้งแปลคำอังกฤษกลับเป็นไทยมากเกินไป.</p>
+  <p><strong>คำแนะนำ:</strong> <strong>ทดสอบ prompt ของจริง</strong> (เช่น transcript จากนักเรียนจริงที่มี code-switching) ก่อนเลือก vendor — อย่าเชื่อ marketing</p>
+</div>
+
+<div class="callout">
+  <span class="label">ประสิทธิภาพของ tokenizer (สำคัญต่อค่าใช้จ่าย)</span>
+  <p><strong>ปัญหา:</strong> ราคา $/M tokens ของแต่ละ vendor ดูเท่ากัน แต่ <strong>ภาษาไทยใช้ token ต่างกันมหาศาล</strong>ในแต่ละ tokenizer.</p>
+  <ul style="margin:.5rem 0">
+    <li><strong>Tokenizer ที่ปรับมาสำหรับไทยโดยเฉพาะ</strong> (Typhoon SentencePiece) — ใช้ token น้อยกว่า ~2.6 เท่า เมื่อเทียบกับ vanilla GPT-4 / Llama tokenizer สำหรับข้อความไทยเดียวกัน</li>
+    <li><strong>Tokenizer ทั่วไป</strong> (Llama 3.1, Qwen2.5) — กินจำนวน token เพิ่ม ~2 เท่า สำหรับเนื้อหาไทยขนาดเดียวกัน</li>
+  </ul>
+  <p><strong>คำแนะนำ:</strong> เทียบราคา $/M tokens ตรงๆ <strong>ไม่พอ</strong> — ต้องลองยิง prompt ของจริงดูว่าแต่ละ vendor ใช้ token เท่าไหร่. โมเดลที่ราคาดูแพงกว่าอาจถูกกว่าจริงๆ ถ้า tokenizer ของมันประหยัดกว่า</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">เงื่อนไข license</span>
+  <p>แต่ละโมเดลมีเพดานเชิงพาณิชย์ต่างกันตาม base ที่มันมาจาก:</p>
+  <ul style="margin:.5rem 0 .75rem 0">
+    <li><strong>Llama-based</strong> (Typhoon 2-70B, SEA-LION-70B) — ติดเพดาน <strong>700M MAU</strong>. ถ้าผู้ใช้ active เกิน 700 ล้านคน/เดือน ต้องขออนุญาต Meta ก่อน</li>
+    <li><strong>Gemma-based</strong> (Typhoon 2.1-Gemma3) — ใช้ <strong>Gemma Terms of Use</strong>. ใช้เชิงพาณิชย์ได้ปกติ ไม่มีเพดาน MAU แต่ห้ามใช้ละเมิด policy ของ Google</li>
+    <li><strong>Qwen-based</strong> (OpenThaiGPT, THaLLE) — ติดเพดาน <strong>100M MAU</strong></li>
+    <li><strong>Apache-2.0</strong> (Pathumma, Qwen3 base — Typhoon 2.5 สืบทอดจาก Qwen3) — เสรีที่สุด ไม่มีเพดาน ไม่มีเงื่อนไขเชิงพาณิชย์</li>
+  </ul>
+  <p>ที่ scale SME — ยังไม่มีตัวไหนติดเพดานอยู่แล้ว แต่ควรเลือกโดย<strong>รู้เงื่อนไขล่วงหน้า</strong> เผื่อโตเร็วในอนาคต</p>
+</div>
+
+<div class="callout">
+  <span class="label">Safety alignment / การกรองเนื้อหา</span>
+  <p><strong>ปัญหา:</strong> Thai LLM ทุกตัวผ่านกระบวนการ <strong>RLHF</strong> (Reinforcement Learning from Human Feedback — การสอน LLM ให้ตอบดีๆ ผ่าน feedback ของคน) เบากว่า Gemini หรือ Claude. ผลคือ:</p>
+  <ul style="margin:.5rem 0">
+    <li><strong>ดี:</strong> ปฏิเสธคำถามแปลกๆ น้อยลง — ไม่หงุดหงิดผู้ใช้</li>
+    <li><strong>ไม่ดี:</strong> ทนต่อ jailbreak (การหลอกให้ LLM พูดสิ่งที่ไม่ควร) ได้น้อยกว่า — เปราะกับ prompt injection</li>
+  </ul>
+  <p><strong>คำแนะนำ:</strong> สำหรับแอปการศึกษาที่<strong>อาจมีเด็ก</strong>เป็นผู้ใช้, อย่าฝากความปลอดภัยไว้ที่ LLM อย่างเดียว. <strong>ซ้อน moderation filter ของตัวเองทับอีกชั้น</strong> — เช่น keyword filter, classifier ที่ตรวจ output ก่อนแสดง</p>
+</div>
+</section>
+
+<section id="sources">
+<h2>แหล่งอ้างอิง</h2>
+<h3>โมเดล</h3>
+<ul>
+  <li><a href="https://opentyphoon.ai/">opentyphoon.ai</a> · <a href="https://huggingface.co/scb10x">HF: scb10x</a> · <a href="https://arxiv.org/abs/2412.13702">Typhoon 2 paper</a> · <a href="https://opentyphoon.ai/blog/en/typhoon2-5-release">Typhoon 2.5 release</a> · <a href="https://docs.opentyphoon.ai/en/tool/">เอกสาร tool-calling</a></li>
+  <li><a href="https://huggingface.co/openthaigpt/openthaigpt1.5-14b-instruct">HF: OpenThaiGPT 1.5-14B</a> · <a href="https://arxiv.org/abs/2504.01789">OpenThaiGPT 1.6 / R1 paper</a> · <a href="https://openthaigpt.aieat.or.th/">openthaigpt.aieat.or.th</a></li>
+  <li><a href="https://huggingface.co/nectec/Pathumma-llm-text-1.0.0">HF: Pathumma-llm-text-1.0.0</a> · <a href="https://www.nectec.or.th/innovation/innovation-service/pathumma-llm.html">หน้า NECTEC Pathumma</a></li>
+  <li><a href="https://sea-lion.ai/blog/sea-lion-v3/">SEA-LION v3 blog</a> · <a href="https://huggingface.co/aisingapore/Llama-SEA-LION-v3-70B">HF: Llama-SEA-LION-v3-70B</a> · <a href="https://arxiv.org/abs/2504.05747">SEA-LION paper</a></li>
+  <li><a href="https://github.com/vistec-AI/WangchanX">WangchanX repo</a> · <a href="https://huggingface.co/aisingapore/Gemma2-9b-WangchanLIONv2-instruct">HF: Gemma2-9b-WangchanLIONv2</a></li>
+  <li><a href="https://arxiv.org/abs/2601.04597">THaLLE paper</a> · <a href="https://huggingface.co/KBTG-Labs/THaLLE-0.2-ThaiLLM-8B-fa">HF: THaLLE-0.2-8B</a></li>
+</ul>
+<h3>Benchmark &amp; safety</h3>
+<ul>
+  <li><a href="https://opentyphoon.ai/blog/en/introducing-the-thaillm-leaderboard-thaillm-evaluation-ecosystem-508e789d06bf">ThaiLLM Leaderboard</a> · <a href="https://opentyphoon.ai/blog/en/thaisafetybench">ThaiSafetyBench</a> · <a href="https://crfm.stanford.edu/2024/09/04/thaiexam.html">Stanford HELM ThaiExam</a></li>
+</ul>
+<h3>Stack &amp; infrastructure</h3>
+<ul>
+  <li><a href="https://github.com/BerriAI/litellm">LiteLLM</a> · <a href="https://github.com/vllm-project/vllm">vLLM</a> · <a href="https://www.pkgpulse.com/guides/portkey-vs-litellm-vs-openrouter-llm-gateway-2026">LiteLLM vs OpenRouter vs Portkey 2026</a></li>
+  <li><a href="https://www.databasemart.com/blog/vllm-gpu-benchmark-rtx4090">RTX 4090 vLLM benchmark</a> · <a href="https://medium.com/@velinxs/vast-ai-vs-runpod-pricing-in-2026-which-gpu-cloud-is-cheaper-bd4104aa591b">Vast.ai vs RunPod 2026</a> · <a href="https://arxiv.org/html/2601.14277v1">งานวิจัย quantization ของ llama.cpp</a></li>
+</ul>
+</section>
+
+<footer>
+  <p>เรียบเรียงเมื่อ 8 พฤษภาคม 2026 · จากข้อมูล public benchmark, เอกสาร vendor, และความเห็นชุมชนนักพัฒนาไทย. ตัวเลขและคำแนะนำมีอายุการใช้งานสั้น — ตรวจสอบ API ของ vendor และ HF leaderboard อีกครั้งก่อนตัดสินใจลงทุน</p>
+  <p>หน้านี้เป็น HTML ไฟล์เดียว (~60 KB), ไม่มี JS, ไม่มี dependency ภายนอก, รองรับมือถือ, รู้จัก dark-mode. <strong>วางบน static host ตัวไหนก็ได้ แล้วแชร์ลิงก์ได้เลย</strong></p>
+</footer>
+
+</div><!-- /wrap -->
+</body>
+</html>

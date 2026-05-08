@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thai LLM Research — Replacing Gemini/GPT in a Thai English-learning app</title>
+<meta name="description" content="Build-vs-buy analysis of open-source Thai LLMs (Typhoon, OpenThaiGPT, Pathumma, SEA-LION) for production. Available in English and Thai.">
+<style>
+  body{margin:0;background:#fafaf7;color:#0f172a;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;display:grid;place-items:center;min-height:100vh;padding:2rem}
+  @media (prefers-color-scheme: dark){body{background:#0c0a09;color:#f5f5f4}}
+  .card{max-width:520px;text-align:center}
+  h1{font-size:1.6rem;margin:0 0 .5rem;letter-spacing:-.01em}
+  p{color:#64748b;margin:0 0 1.75rem}
+  @media (prefers-color-scheme: dark){p{color:#a8a29e}}
+  .links{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+  a{display:inline-block;padding:.7rem 1.5rem;background:#d97706;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:.95rem;transition:transform .15s}
+  a:hover{transform:translateY(-1px)}
+  a.alt{background:transparent;color:#d97706;border:1px solid #d97706}
+  .meta{margin-top:2rem;font-size:.82rem;color:#94a3b8}
+  @media (prefers-color-scheme: dark){.meta{color:#78716c}}
+</style>
+<script>
+  // Auto-redirect based on browser language preference (only if no explicit choice)
+  (function(){
+    var lang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    if (lang.startsWith('th') && !location.search.includes('stay')) {
+      location.replace('th.html');
+    }
+  })();
+</script>
+</head>
+<body>
+<div class="card">
+  <h1>Thai LLM Research</h1>
+  <p>Replacing Gemini &amp; GPT in a Thai English-learning app — a build-vs-buy analysis (May 2026).</p>
+  <div class="links">
+    <a href="en.html">Read in English</a>
+    <a href="th.html" class="alt">อ่านภาษาไทย</a>
+  </div>
+  <p class="meta">Single-file static report · 90 KB total · no JS dependencies on the report itself</p>
+</div>
+</body>
+</html>
