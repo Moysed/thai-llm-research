@@ -116,7 +116,7 @@
 
 <header class="hero">
   <p class="eyebrow">Bench Report · 2026-05-08</p>
-  <h1>Typhoon 2.5 vs Gemini Flash-Lite — head-to-head on Enggenius pronunciation</h1>
+  <h1>Six Thai LLMs benchmarked on the actual Enggenius pronunciation prompt</h1>
   <p class="lede">50 samples per provider against the actual <code>PROMPT_TEMPLATE</code> from <code>GeminiPronunciationService.cs</code>. Latency, schema reliability, score sanity, and Thai output completeness — what shipping looks like, not what the marketing page says.</p>
   <p style="font-size:.85rem; color:var(--ink-3); margin-top:.5rem">🌐 <a href="./bench-2026-05-08-th.html">ภาษาไทย</a></p>
   <div class="meta">
@@ -132,25 +132,42 @@
 
 <div class="callout good">
   <span class="label">Ship</span>
-  <p><strong>Stay on Gemini Flash-Lite for now.</strong> p95 latency 4.8s — comfortably under the 5s real-time UX budget. Add retry on 503/timeout (4% of calls failed transiently in this run).</p>
+  <p><strong>Stay on Gemini Flash-Lite for now.</strong> Student says a sentence → feedback shows up in 2.1s typical, 4.8s on a bad day. Quick enough to keep flow. Add retry on 503/timeout — 4% of calls failed transiently in this run, which means roughly 1 in 25 students would see a broken response without a fallback.</p>
+  <p style="margin-top:.5rem; font-size:.85rem"><a href="#headline-numbers">→ see the numbers</a></p>
 </div>
 
 <div class="callout bad">
   <span class="label">Don't ship</span>
-  <p><strong>Hosted Typhoon 2.5-30b-a3b is not viable for Enggenius.</strong> p95 10.2s — 2× over the latency budget. Long Thai feedback gets the model into 10+ second territory consistently. Schema is rock-solid (50/50) and Thai quality is richer, but the latency wall is real.</p>
+  <p><strong>Hosted Typhoon 2.5-30b-a3b is not viable for Enggenius.</strong> Median wait 6.2s, bad-day wait 10.2s — 2× the latency budget. Picture a student saying "The weather is beautiful today" and watching a spinner for 10 seconds before any feedback appears. They've already opened TikTok. Schema is rock-solid (50/50) and Thai quality is richer than Gemini, but the latency wall is real.</p>
+  <p style="margin-top:.5rem; font-size:.85rem"><a href="#headline-numbers">→ see the numbers</a></p>
 </div>
 
 <div class="callout warn">
   <span class="label">Watch</span>
   <p><strong>Schema completeness gap.</strong> Gemini returns valid JSON but its <code>words</code> array is just word names — no per-word score, no per-word Thai feedback. Typhoon ignores the schema and returns full <code>word_scores</code> with bilingual feedback per word. The bench rates both as "schema-valid"; Enggenius's actual student-facing UX needs the per-word feedback. Tighten the schema before declaring a winner.</p>
+  <p style="margin-top:.5rem; font-size:.85rem"><a href="#schema-gap">→ see what the student sees</a></p>
 </div>
 
 <div class="callout">
   <span class="label">Round 2 finding</span>
-  <p><strong>THaLLE-0.2-ThaiLLM-8B-fa (KBTG) is the surprise.</strong> Sovereign 8B model on Thai gov GPUs — <strong>p50 3.7s, schema-clean 10/10</strong> on the smoke run. Faster than the hosted 30b Typhoon, faster than Gemini Flash-Lite, and produces richer per-word bilingual feedback than either. <a href="#round2">See Round 2 below</a>. Caveat: only n=10/provider so far; a full 5-iter rerun is needed before betting prod on it.</p>
+  <p><strong>THaLLE-0.2-ThaiLLM-8B-fa (KBTG) is the surprise.</strong> Sovereign 8B model on Thai gov GPUs — <strong>p50 3.7s, schema-clean 10/10</strong> on the smoke run. Faster than the hosted 30b Typhoon, faster than Gemini Flash-Lite, and produces richer per-word bilingual feedback than either. Caveat: only n=10/provider so far; a full 5-iter rerun is needed before betting prod on it.</p>
+  <p style="margin-top:.5rem; font-size:.85rem"><a href="#round2">→ jump to Round 2</a></p>
 </div>
 
 <h2>At a glance</h2>
+
+<div class="card" style="background:var(--pill-bg); font-size:.92rem">
+  <h3 style="margin-top:0; font-size:.95rem">Reading the numbers</h3>
+  <ul style="margin:.25rem 0">
+    <li><strong>p50</strong> = median. Half of requests finish faster than this. The "typical" experience.</li>
+    <li><strong>p95</strong> = 95% of requests finish faster than this. The "bad day" experience that 1 in 20 students will hit.</li>
+    <li><strong>p99</strong> = the worst 1%. The "I'm gonna refresh and try again" experience.</li>
+    <li><strong>Schema-fail</strong> = the response was valid JSON but missing required fields (no <code>overall_score</code>, no <code>recognized_text</code>) — bench can't grade the student's answer.</li>
+    <li><strong>Smoke run</strong> = a small first pass (1 iteration here, n=10) to confirm everything works before committing to a long full run.</li>
+    <li><strong>Sovereign</strong> = runs on Thai government compute (ThaiSC supercomputer), free public access, no data leaves Thailand.</li>
+  </ul>
+  <p style="margin:.5rem 0 0; font-size:.85rem; color:var(--ink-3)">For context: <strong>5 seconds is roughly two breaths</strong> — about as long as a student will wait before losing focus. <strong>10 seconds is enough to switch tabs to TikTok.</strong></p>
+</div>
 
 <figure style="margin:1.5rem 0 2rem">
   <figcaption style="font-size:.85rem; color:var(--ink-3); margin-bottom:.5rem"><strong>Latency — p50 vs p95 (lower is better).</strong> Dashed red = 5s real-time UX limit. Round 1 sample size n=50, Round 2 (sovereign 8B) n=10.</figcaption>
@@ -360,7 +377,7 @@
 
 <p><strong>Settings</strong>: <code>temperature=0.3</code>, <code>max_tokens=2500</code>, <code>response_format=json_object</code>. Sequential calls, no concurrency, single client machine.</p>
 
-<h2>Headline numbers</h2>
+<h2 id="headline-numbers">Headline numbers</h2>
 
 <div class="scroll-x">
 <table>
@@ -447,13 +464,20 @@
 </table>
 </div>
 
-<p><strong>Gemini is more deterministic.</strong> At <code>temperature=0.3</code>, Typhoon's <code>nonsense</code> score drifted across runs (0/15/20/0/25); Gemini stayed at 0 every time. For a grading product where students compare scores across attempts, deterministic matters more than absolute correctness.</p>
+<p><strong>Gemini is more deterministic.</strong> At <code>temperature=0.3</code>, Typhoon's <code>nonsense</code> score drifted across runs (0/15/20/0/25); Gemini stayed at 0 every time. For a grading product where students compare scores across attempts, determinism matters more than absolute correctness.</p>
 
 <p><strong>Typhoon is more lenient on partial wrong</strong> — gave 87 to "She is reading a <em>cook</em>" (semantic swap, only 4/5 words right). Gemini's 85–88 is similar but more honest about the word swap.</p>
 
-<h2>The schema completeness gap</h2>
+<h2 id="schema-gap">The schema completeness gap</h2>
 
 <p>This is the part the headline numbers miss. Both providers passed the bench's <code>schema_valid</code> check. The actual outputs are different products.</p>
+
+<p><strong>What the student actually sees:</strong></p>
+<ul>
+  <li><strong>With Gemini</strong>: ✓ ✓ ✓ ✓ ✗ — five marks next to five words. No coaching. The student knows they got "cook" wrong, but not what to do about it.</li>
+  <li><strong>With Typhoon</strong>: ✓ ✓ ✓ ✓ ✗ + <em>"ฝึกออกเสียง 'book' ด้วยเสียงยาว 'oo' และเสียง 'k' ที่นุ่มนวล"</em> per word, in Thai. The student knows what to do.</li>
+</ul>
+<p>Same JSON validity check passes for both. They are not the same product.</p>
 
 <h3>Typhoon — full per-word bilingual feedback</h3>
 <div class="quote">
@@ -501,7 +525,7 @@
   <li><strong>Don't migrate off Gemini yet.</strong> The latency win is too big to give up. Hosted Typhoon 30b is a non-starter for the real-time grading flow.</li>
   <li><strong>Add retry/fallback on Gemini.</strong> 4% transient failure rate is unacceptable for a student-facing product. LiteLLM gateway with Gemini → Typhoon failover is the cheapest fix and keeps Typhoon in play as a backstop where p95 latency can spike.</li>
   <li><strong>Tighten the JSON schema before any future bench.</strong> Make per-word <code>score</code> and <code>feedback.{en,th}</code> required. Right now Gemini's "schema-valid" output would be a degraded UX in prod.</li>
-  <li><strong>Re-evaluate Typhoon when self-hosted.</strong> The 30b on hosted infra is bandwidth-bound — Typhoon-S-ThaiLLM-8B (sovereign Thai gov compute, free, OpenAI-compatible-via-LiteLLM) or self-hosted Typhoon 2.1-12B Q4_K_M on a Vast L40 should hit &lt;3s p95 if served via vLLM. That's the real comparison.</li>
+  <li><strong>Re-evaluate Typhoon when self-hosted.</strong> The 30b on hosted infra is too slow — Typhoon-S-ThaiLLM-8B (sovereign Thai gov compute, free, natively OpenAI-compatible — see Round 2) or self-hosted Typhoon 2.1-12B Q4_K_M on a Vast L40 should hit &lt;3s p95 if served via vLLM. That's the real comparison.</li>
   <li><strong>Code-switching is Typhoon's actual edge.</strong> 85–89 vs Gemini's flat 70 on "I will go to the ประชุม" — if Enggenius students mix Thai filler words while practicing English (likely), Typhoon's grading is more forgiving and arguably more correct. Worth a follow-up bench focused only on code-switch cases.</li>
 </ol>
 
@@ -604,7 +628,8 @@
 
 <div class="callout bad">
   <span class="label">Disqualified for prod</span>
-  <p>Pathumma-ThaiLLM-qwen3-8b-think-3.0.0 is <strong>not viable for Enggenius</strong> as the JSON-grading endpoint. It's a reasoning model, not a structured-output model — even when the JSON validates, it gets the actual grading wrong. See sample below: it failed to flag the obvious "cook" vs "book" word swap and instead invented criticism of the unrelated word "reading".</p>
+  <p>Pathumma-ThaiLLM-qwen3-8b-think-3.0.0 is <strong>not viable for Enggenius</strong> as the JSON-grading endpoint. It's a reasoning model, not a structured-output model — even when the JSON validates, it gets the actual grading wrong.</p>
+  <p><strong>The failure cascade in plain terms:</strong> a student says "cook" instead of "book". Pathumma gives them <strong>87.5/100</strong> and tells them their problem was the word "reading". The student walks away thinking they did well, never knowing the actual mistake — and now they "know" their "reading" is wrong, which it isn't. The student loses trust in the app AND learns the wrong lesson. Worst of both worlds.</p>
 </div>
 
 <h3>Score sanity at n=10 (directional)</h3>

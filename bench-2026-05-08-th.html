@@ -115,7 +115,7 @@
 
 <header class="hero">
   <p class="eyebrow">รายงาน Bench · 2026-05-08</p>
-  <h1>Typhoon 2.5 ปะทะ Gemini Flash-Lite — และ ThaiLLM อธิปไตยอีก 4 ตัว บน prompt จริงของ Enggenius</h1>
+  <h1>Benchmark Thai LLM 6 ตัว บน prompt จริงของ Enggenius</h1>
   <p class="lede">ทดสอบ 50 samples ต่อ provider โดยใช้ <code>PROMPT_TEMPLATE</code> จริงจาก <code>GeminiPronunciationService.cs</code> เปรียบเทียบ latency, ความน่าเชื่อถือของ schema, ความสมเหตุสมผลของคะแนน และความสมบูรณ์ของ output ภาษาไทย — ในแบบที่จะเกิดขึ้นจริงตอน ship ไม่ใช่ตามที่หน้าโฆษณาบอก</p>
   <p class="lang-switch">🌐 <a href="./bench-2026-05-08.html">English version</a></p>
   <div class="meta">
@@ -131,25 +131,42 @@
 
 <div class="callout good">
   <span class="label">Ship ได้</span>
-  <p><strong>ใช้ Gemini Flash-Lite ต่อไปก่อน</strong> — p95 4.8 วินาที อยู่ใต้ขอบเขต 5 วินาทีสำหรับ UX แบบ real-time ได้สบายๆ เพิ่ม retry logic เมื่อเจอ 503/timeout เพราะรอบนี้ 4% ของ call ล้มเหลวแบบชั่วคราว</p>
+  <p><strong>ใช้ Gemini Flash-Lite ต่อไปก่อน</strong> — นักเรียนพูดประโยค → feedback ขึ้น 2.1 วิโดยทั่วไป 4.8 วิในวันแย่ๆ เร็วพอที่นักเรียนจะอยู่กับเรา เพิ่ม retry เมื่อเจอ 503/timeout — รอบนี้ 4% ของ call ล้มชั่วคราว แปลว่าราว 1 ใน 25 นักเรียนจะเจอ response พังถ้าไม่มี fallback</p>
+  <p style="margin-top:.5rem; font-size:.85rem"><a href="#headline-numbers">→ ดูตัวเลข</a></p>
 </div>
 
 <div class="callout bad">
   <span class="label">อย่า Ship</span>
-  <p><strong>Typhoon 2.5-30b-a3b แบบ hosted ใช้กับ Enggenius ไม่ได้</strong> — p95 10.2 วินาที <strong>เกินขอบเขต latency 2 เท่า</strong> ตรวจ Thai feedback ยาวๆ ทีไรก็ทะลุ 10 วินาทีตลอด schema นิ่งดีนะ (50/50) คุณภาพ Thai ก็ดี แต่กำแพง latency คือกำแพง</p>
+  <p><strong>Typhoon 2.5-30b-a3b แบบ hosted ใช้กับ Enggenius ไม่ได้</strong> — รอกลางๆ 6.2 วิ วันแย่ๆ 10.2 วิ <strong>เกินขอบเขต latency 2 เท่า</strong> ลองนึกภาพนักเรียนพูดว่า "The weather is beautiful today" แล้วจ้อง spinner 10 วินาทีก่อนได้ feedback — เปิด TikTok ไปแล้ว schema นิ่งดี (50/50) คุณภาพ Thai ดีกว่า Gemini ก็จริง แต่กำแพง latency คือกำแพง</p>
+  <p style="margin-top:.5rem; font-size:.85rem"><a href="#headline-numbers">→ ดูตัวเลข</a></p>
 </div>
 
 <div class="callout warn">
   <span class="label">ระวัง</span>
-  <p><strong>ช่องว่างความสมบูรณ์ของ schema</strong> Gemini คืน JSON ที่ valid ก็จริง แต่ array <code>words</code> มีแค่ชื่อคำ — ไม่มีคะแนนรายคำ ไม่มี feedback ภาษาไทยรายคำ ส่วน Typhoon ไม่สนใจ schema ตรงๆ แต่ส่ง <code>word_scores</code> เต็มพร้อม feedback สองภาษาต่อคำ bench ของเรามองทั้งคู่ว่า "schema-valid" — แต่ UX ที่นักเรียนเห็นจริงต้องการ feedback รายคำ ต้องเข้มงวด schema ก่อนตัดสินผู้ชนะ</p>
+  <p><strong>ช่องว่างความสมบูรณ์ของ schema</strong> Gemini คืน JSON ที่ valid ก็จริง แต่ array <code>words</code> มีแค่ชื่อคำ — ไม่มีคะแนนรายคำ ไม่มี feedback ภาษาไทยรายคำ ส่วน Typhoon ไม่สนใจ schema แต่ส่ง <code>word_scores</code> เต็มพร้อม feedback สองภาษาต่อคำ bench ของเรามองทั้งคู่ว่า "schema-valid" — แต่ UX ที่นักเรียนเห็นจริงต้องการ feedback รายคำ ต้องเข้มงวด schema ก่อนตัดสินผู้ชนะ</p>
+  <p style="margin-top:.5rem; font-size:.85rem"><a href="#schema-gap">→ ดูสิ่งที่นักเรียนเห็นจริง</a></p>
 </div>
 
 <div class="callout">
   <span class="label">รอบ 2: ของแถมที่ไม่คาดคิด</span>
-  <p><strong>THaLLE-0.2-ThaiLLM-8B-fa (KBTG) คือม้ามืด</strong> — โมเดลอธิปไตย 8B รันบน GPU ของรัฐไทย <strong>p50 3.7 วินาที, schema สะอาด 10/10</strong> จากการ smoke run เร็วกว่า Typhoon 30b แบบ hosted เร็วกว่า Gemini Flash-Lite และให้ feedback สองภาษารายคำที่ครบถ้วนกว่าทั้งคู่ <a href="#round2">ดูรอบ 2 ด้านล่าง</a> ข้อแม้: ตอนนี้แค่ n=10 ต่อ provider ต้อง full 5-iter rerun ก่อนจะลง prod</p>
+  <p><strong>THaLLE-0.2-ThaiLLM-8B-fa (KBTG) คือม้ามืด</strong> — โมเดลอธิปไตย 8B รันบน GPU ของรัฐไทย <strong>p50 3.7 วินาที, schema สะอาด 10/10</strong> จากการ smoke run เร็วกว่า Typhoon 30b แบบ hosted เร็วกว่า Gemini Flash-Lite และให้ feedback สองภาษารายคำที่ครบถ้วนกว่าทั้งคู่ ข้อแม้: ตอนนี้แค่ n=10 ต่อ provider ต้อง full 5-iter rerun ก่อนจะลง prod</p>
+  <p style="margin-top:.5rem; font-size:.85rem"><a href="#round2">→ ไปที่รอบ 2</a></p>
 </div>
 
 <h2>ภาพรวม</h2>
+
+<div class="card" style="background:var(--pill-bg); font-size:.92rem">
+  <h3 style="margin-top:0; font-size:.95rem">วิธีอ่านตัวเลข</h3>
+  <ul style="margin:.25rem 0">
+    <li><strong>p50</strong> = ค่ามัธยฐาน ครึ่งหนึ่งของ request เสร็จเร็วกว่านี้ ประสบการณ์ "ปกติทั่วไป"</li>
+    <li><strong>p95</strong> = 95% ของ request เสร็จเร็วกว่านี้ ประสบการณ์ "วันแย่ๆ" ที่ 1 ใน 20 นักเรียนจะเจอ</li>
+    <li><strong>p99</strong> = แย่สุด 1% ประสบการณ์ "ขอ refresh แล้วลองใหม่"</li>
+    <li><strong>Schema-fail</strong> = response เป็น JSON ที่ valid แต่ขาด field ที่ required (ไม่มี <code>overall_score</code>, ไม่มี <code>recognized_text</code>) — bench ตรวจคำตอบนักเรียนไม่ได้</li>
+    <li><strong>Smoke run</strong> = การรัน pass แรกแบบเล็กๆ (1 iteration ที่นี่ n=10) เพื่อยืนยันว่าทุกอย่างใช้งานได้ก่อนยอมเสียเวลารัน full run</li>
+    <li><strong>Sovereign / อธิปไตย</strong> = รันบน supercomputer ของรัฐไทย (ThaiSC) ใช้งานฟรี ข้อมูลไม่ออกนอกประเทศ</li>
+  </ul>
+  <p style="margin:.5rem 0 0; font-size:.85rem; color:var(--ink-3)">เพื่อให้นึกออก: <strong>5 วินาทีคือประมาณ 2 ลมหายใจ</strong> — นานพอที่นักเรียนจะเริ่มไขว้เขว <strong>10 วินาทีนานพอที่นักเรียนจะเปลี่ยนแท็บไป TikTok</strong></p>
+</div>
 
 <figure style="margin:1.5rem 0 2rem">
   <figcaption style="font-size:.85rem; color:var(--ink-3); margin-bottom:.5rem"><strong>Latency — p50 ปะทะ p95 (ต่ำกว่าดีกว่า)</strong> เส้นแดงประ = ขีดจำกัด 5 วิ สำหรับ UX แบบ real-time รอบ 1 ตัวอย่าง n=50 รอบ 2 (sovereign 8B) n=10</figcaption>
@@ -342,7 +359,7 @@
 
 <p><strong>การตั้งค่า:</strong> <code>temperature=0.3</code>, <code>max_tokens=2500</code>, <code>response_format=json_object</code> เรียกแบบ sequential ไม่มี concurrency จากเครื่อง client เดียว</p>
 
-<h2>ตัวเลขหลัก</h2>
+<h2 id="headline-numbers">ตัวเลขหลัก</h2>
 
 <div class="scroll-x">
 <table>
@@ -433,9 +450,16 @@
 
 <p><strong>Typhoon ใจดีกับคำผิดบางส่วน</strong> — ให้ 87 กับ "She is reading a <em>cook</em>" (เปลี่ยนคำที่ความหมายต่าง ถูกแค่ 4/5 คำ) ส่วน Gemini ที่ 85–88 พอกัน แต่ตรงไปตรงมากว่ากับการเปลี่ยนคำ</p>
 
-<h2>ช่องว่างความสมบูรณ์ของ Schema</h2>
+<h2 id="schema-gap">ช่องว่างความสมบูรณ์ของ Schema</h2>
 
 <p>ส่วนนี้คือสิ่งที่ตัวเลขหลักไม่ได้บอก ทั้งคู่ผ่าน <code>schema_valid</code> ของ bench แต่ output จริงเป็นคนละ product</p>
+
+<p><strong>สิ่งที่นักเรียนเห็นจริงๆ:</strong></p>
+<ul>
+  <li><strong>กับ Gemini</strong>: ✓ ✓ ✓ ✓ ✗ — เครื่องหมาย 5 อันข้าง 5 คำ ไม่มี coaching นักเรียนรู้ว่า "cook" ผิด แต่ไม่รู้ว่าจะแก้ยังไง</li>
+  <li><strong>กับ Typhoon</strong>: ✓ ✓ ✓ ✓ ✗ + <em>"ฝึกออกเสียง 'book' ด้วยเสียงยาว 'oo' และเสียง 'k' ที่นุ่มนวล"</em> รายคำ เป็นภาษาไทย นักเรียนรู้ว่าจะทำอะไรต่อ</li>
+</ul>
+<p>JSON ทั้งคู่ valid เท่ากัน แต่ไม่ใช่ product เดียวกัน</p>
 
 <h3>Typhoon — feedback สองภาษารายคำเต็ม</h3>
 <div class="quote">
@@ -483,7 +507,7 @@
   <li><strong>อย่าย้ายออกจาก Gemini ตอนนี้</strong> — ที่ได้จาก latency มันใหญ่เกินจะทิ้ง Typhoon 30b แบบ hosted ไม่ผ่านสำหรับ flow ตรวจการออกเสียงแบบ real-time</li>
   <li><strong>เพิ่ม retry/fallback บน Gemini</strong> — อัตรา failure ชั่วคราว 4% ยอมรับไม่ได้สำหรับ product ที่นักเรียนเห็น ทางที่ถูกที่สุดคือ LiteLLM gateway ที่ Gemini → Typhoon failover และเก็บ Typhoon เป็น backstop ตอน p95 latency เด้ง</li>
   <li><strong>เข้มงวด JSON schema ก่อน bench รอบหน้า</strong> — บังคับ <code>score</code> และ <code>feedback.{en,th}</code> ต่อคำให้ required ตอนนี้ output ของ Gemini ที่ "schema-valid" จะเป็น UX ที่อ่อนใน prod</li>
-  <li><strong>ทบทวน Typhoon เมื่อ self-host</strong> — 30b บน hosted infra ติด bandwidth — Typhoon-S-ThaiLLM-8B (รันบน GPU ของรัฐไทย ฟรี OpenAI-compatible) หรือ self-host Typhoon 2.1-12B Q4_K_M บน Vast L40 น่าจะแตะ p95 ต่ำกว่า 3 วิได้ถ้า serve ผ่าน vLLM นั่นคือการเปรียบเทียบจริง</li>
+  <li><strong>ทบทวน Typhoon เมื่อ self-host</strong> — 30b บน hosted infra ช้าเกินไป — Typhoon-S-ThaiLLM-8B (รันบน GPU ของรัฐไทย ฟรี OpenAI-compatible แท้ๆ — ดูรอบ 2) หรือ self-host Typhoon 2.1-12B Q4_K_M บน Vast L40 น่าจะแตะ p95 ต่ำกว่า 3 วิได้ถ้า serve ผ่าน vLLM นั่นคือการเปรียบเทียบจริง</li>
   <li><strong>Code-switching คือจุดแข็งจริงของ Typhoon</strong> — 85–89 เทียบกับ 70 คงที่ของ Gemini บน "I will go to the ประชุม" ถ้านักเรียน Enggenius สลับคำเชื่อมไทยตอนฝึกอังกฤษ (ซึ่งน่าจะใช่) Typhoon ตรวจอ่อนกว่าและเหมาะสมกว่า ควร bench ตามอีกครั้งเฉพาะ code-switch cases</li>
 </ol>
 
@@ -586,7 +610,8 @@
 
 <div class="callout bad">
   <span class="label">ตัดออกจาก prod</span>
-  <p>Pathumma-ThaiLLM-qwen3-8b-think-3.0.0 <strong>ใช้กับ Enggenius ไม่ได้</strong> ในฐานะ JSON-grading endpoint มันคือ reasoning model ไม่ใช่ structured-output model — แม้ JSON จะ valid มันก็ตรวจคะแนนผิด ดูตัวอย่างด้านล่าง: มันไม่จับ "cook" vs "book" ที่ผิดชัดๆ แล้วไปด่าคำว่า "reading" ที่ไม่เกี่ยวข้องแทน</p>
+  <p>Pathumma-ThaiLLM-qwen3-8b-think-3.0.0 <strong>ใช้กับ Enggenius ไม่ได้</strong> ในฐานะ JSON-grading endpoint มันคือ reasoning model ไม่ใช่ structured-output model — แม้ JSON จะ valid มันก็ตรวจคะแนนผิด</p>
+  <p><strong>ผลลูกโซ่ของความผิดพลาดแบบเข้าใจง่าย:</strong> นักเรียนพูด "cook" แทน "book" Pathumma ให้คะแนน <strong>87.5/100</strong> แล้วบอกนักเรียนว่าปัญหาคือคำว่า "reading" นักเรียนเดินจากไปคิดว่าตัวเองทำดีแล้ว ไม่เคยรู้ว่าผิดตรงไหนจริง — แล้วตอนนี้ "เชื่อ" ว่า "reading" ของตัวเองผิด ซึ่งไม่ผิด นักเรียนเสียศรัทธาในแอป และเรียนผิดด้วย แย่ที่สุดของทั้งสองด้าน</p>
 </div>
 
 <h3>ความสมเหตุสมผลของคะแนนที่ n=10 (ทิศทางเท่านั้น)</h3>
